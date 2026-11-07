@@ -1,4 +1,4 @@
-# Weekly dependency updates. Ecosystems for the backend (uv, Dockerfile) are added with the first code.
+# Weekly dependency updates. Minor/patch updates are grouped into one PR per ecosystem.
 version: 2
 updates:
   # Images pinned in docker-compose.yml
@@ -6,6 +6,25 @@ updates:
     directory: /
     schedule:
       interval: weekly
+
+  - package-ecosystem: uv
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      backend-minor-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  # Base image in backend/Dockerfile
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+    ignore:
+      # The backend is locked to Python 3.12 (pyproject requires-python, uv.lock). Move the image together with requires-python.
+      - dependency-name: python
+        versions: [">=3.13"]
 
   - package-ecosystem: github-actions
     directory: /
