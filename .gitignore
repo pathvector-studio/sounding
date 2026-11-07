@@ -18,3 +18,6 @@ node_modules
 
 # Agent hand-off notes (specs/agent-workflow.md)
 .handoff/
+
+# Phase-0 spike raw data (never commit)
+spike/data/
