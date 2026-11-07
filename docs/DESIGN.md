@@ -308,6 +308,8 @@ biblioflow はアプリ（biblioflow）とサイト（biblioflow-web）を別リ
 
 ## 8. データモデル（概略）
 
+> 段 1 で具体化した（`specs/phase1.md`、2026-11-08）：`threads` → `conversations`、`thread_states` → `conversation_states`、`items.author` → `author_name`＋`author_key`、`events` を追加。取り込みのテーブル（sources・items・conversations・events・conversation_states）は利用者の列を持たない共有の層。
+
 ```
 sources(id, kind[rss|ietf_list|datatracker], key, url, enabled, last_fetched_at, last_status)
 items(id, source_id, external_id[guid|message-id], url, title, author, published_at,
