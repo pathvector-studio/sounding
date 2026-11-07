@@ -41,5 +41,35 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: cp .env.example .env && docker compose config -q
+      - name: Build the backend image
+        run: docker build backend
 
-  # Backend tests, frontend checks and the installer job are added with the first code (docs/DESIGN.md §9).
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sounding_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sounding_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.3"
+      - run: uv sync --frozen
+      - name: Run tests (integration tests must not be skipped; includes the models-vs-migration check)
+        run: |
+          uv run pytest -q -rs -p no:cacheprovider | tee pytest.log
+          if grep -qi "skipped" pytest.log; then echo "::error::tests were skipped"; exit 1; fi
+
+  # The frontend and installer jobs are added with their code (docs/DESIGN.md §9).
