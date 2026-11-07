@@ -8,3 +8,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ### Added
 - Project scaffold: concept, MVP design (`docs/DESIGN.md`), roadmap, development workflow, compose skeleton and `.env.example`. Nothing runs yet.
+- Phase 0 spike: IETF mailing lists are fetched over anonymous IMAP (`imap.ietf.org`), with rsync monthly mbox files as the fallback. Measurements and the decision are in `docs/spike-phase0.md`.
+
+### Upgrade notes
+- `.env.example`: `IETF_IMAP_HOST` now defaults to `imap.ietf.org`; new `IETF_RSYNC_BASE`. `FETCH_CONTACT` is sent to IETF as the anonymous IMAP password.

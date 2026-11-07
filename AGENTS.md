@@ -30,8 +30,9 @@ Sounding は、追うべき一次情報が多すぎる専門職（まずネッ�
 | 段 | 状態 | 備考 |
 |---|---|---|
 | 立ち上げ（調査・命名・設計・雛形・開発の仕組み） | ✅ 完了 | `docs/SURVEY.md`、`docs/DESIGN.md` |
-| 0. スパイク（IETF ML の取得手段、削減率の測定） | 未着手（次） | spec を書いて承認をもらう |
-| 1〜4 | 未着手 | `docs/DESIGN.md` 9 章 |
+| 0. スパイク（IETF ML の取得手段、削減率の測定） | ✅ 完了 | `docs/spike-phase0.md`。取得は匿名 IMAP が主 |
+| 1. `SourceAdapter`・取得・DB | 未着手（次） | spec を書いて承認をもらう |
+| 2〜4 | 未着手 | `docs/DESIGN.md` 9 章 |
 
 ### 4.2 確定済みの設計判断（再検討しない）
 - 名前は **Sounding**（2026-11-07）。リポジトリ `pathvector-studio/sounding`、サイト `sounding.pathvector.dev`、コンテナ接頭辞 `sounding-`。
