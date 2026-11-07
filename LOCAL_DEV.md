@@ -23,7 +23,7 @@ ln -s ~/.config/sounding/AGENTS.local.md AGENTS.local.md
 | 分類 | 項目 | 置き場 |
 |---|---|---|
 | A. 公開してよい設定 | `SOUNDING_INSTANCE` `SOUNDING_PORT` `TZ` `APP_UID` `APP_GID` `POSTGRES_USER` `POSTGRES_DB` `LLM_PROVIDER` `LLM_MODEL_*` `LLM_DAILY_BUDGET_USD` `LLM_MAX_OUTPUT_TOKENS` `FETCH_*`（連絡先を除く） `EXTERNAL_TIMEOUT_SECONDS` `CONTENT_RETENTION_DAYS` `IETF_*` `DELIVERY_CHANNELS` | 既定値は `.env.example` とコード。変えるなら `dev.env` |
-| B. 秘密 | `POSTGRES_PASSWORD` `SESSION_SECRET`（マシンごとに生成する） | `dev.env` |
+| B. 秘密 | `POSTGRES_PASSWORD` `SESSION_SECRET` `IDENTITY_SECRET`（マシンごとに生成する。`IDENTITY_SECRET` は最初の起動のあとは変えない：送信者の識別子が変わる） | `dev.env` |
 | | `LLM_API_KEY` `WEBHOOK_URL` `SMTP_PASSWORD` `WEB_PASSWORD_HASH` | `dev.env`（1Password に置き `op://` 参照で書ける形にする予定） |
 | C. 個人・ローカル固有 | `PUBLIC_BASE_URL` `FETCH_CONTACT` `SMTP_*` `DIGEST_TO`、`config/profile.yaml` | `dev.env` / チェックアウトの `config/`（git 管理外） |
 | | ほかのサービスとのポートの衝突、開発用ホスト名 | `AGENTS.local.md` |

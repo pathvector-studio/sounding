@@ -9,6 +9,8 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 ### Added
 - Project scaffold: concept, MVP design (`docs/DESIGN.md`), roadmap, development workflow, compose skeleton and `.env.example`. Nothing runs yet.
 - Phase 0 spike: IETF mailing lists are fetched over anonymous IMAP (`imap.ietf.org`), with rsync monthly mbox files as the fallback. Measurements and the decision are in `docs/spike-phase0.md`.
+- Backend skeleton (`backend/`): the shared ingestion schema (sources, items, conversations, events, job_runs) with its first Alembic migration, and a CLI with `python -m sounding migrate` and `status`. The worker and fetching come in the next pull requests of phase 1.
 
 ### Upgrade notes
 - `.env.example`: `IETF_IMAP_HOST` now defaults to `imap.ietf.org`; new `IETF_RSYNC_BASE`. `FETCH_CONTACT` is sent to IETF as the anonymous IMAP password.
+- New keys for phase 1 (see the example env file): `IDENTITY_SECRET` (generate with `openssl rand -hex 32`; do not change it after the first run, because author keys are derived from it), `IETF_BACKFILL_DAYS`, `IETF_MAX_MESSAGES_PER_RUN`, `IETF_ANCESTOR_MAX_DEPTH`, `IETF_ANCESTOR_MAX_AGE_DAYS`.
