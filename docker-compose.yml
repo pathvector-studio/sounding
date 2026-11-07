@@ -1,0 +1,92 @@
+# Sounding — skeleton only. Nothing is implemented yet; `docker compose up` will fail
+# until backend/ exists. The shape follows biblioflow's conventions (see docs/DESIGN.md §4.3).
+name: sounding
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-app-build: &app-build
+  context: ./backend          # TODO: not created yet
+  args:
+    UID: ${APP_UID:-1000}
+    GID: ${APP_GID:-1000}
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@sounding-db:5432/${POSTGRES_DB:?}
+  TZ: ${TZ:-Asia/Tokyo}
+
+x-app-common: &app-common
+  build: *app-build
+  image: sounding-app:local
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  depends_on:
+    sounding-db:
+      condition: service_healthy
+  restart: unless-stopped
+  logging: *logging
+
+services:
+  sounding-db:
+    image: postgres:16
+    container_name: ${SOUNDING_INSTANCE:-sounding}-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - sounding-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *logging
+
+  # Fetch (RSS / IETF lists / Datatracker) → select → summarize (diff) → digest → deliver.
+  # The only container that receives LLM keys and outbound delivery settings.
+  sounding-worker:
+    <<: *app-common
+    container_name: ${SOUNDING_INSTANCE:-sounding}-worker
+    command: ["python", "-m", "sounding.worker"]   # TODO
+    env_file: .env
+    environment: *app-env
+    volumes:
+      - ./config:/app/config:ro                     # profile.yaml
+    networks:
+      - sounding-internal
+      - sounding-egress
+
+  # Read-only UI, minimal API and Atom feed output. Gets no LLM keys.
+  sounding-web:
+    <<: *app-common
+    container_name: ${SOUNDING_INSTANCE:-sounding}-web
+    command: ["python", "-m", "sounding.web"]      # TODO
+    environment:
+      <<: *app-env
+      WEB_PASSWORD_HASH: ${WEB_PASSWORD_HASH:-}
+      SESSION_SECRET: ${SESSION_SECRET:?}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+    ports:
+      - "127.0.0.1:${SOUNDING_PORT:-8080}:8080"
+    networks:
+      - sounding-internal
+      - sounding-edge
+
+volumes:
+  db-data:
+
+networks:
+  sounding-internal:
+    internal: true
+  sounding-egress: {}
+  sounding-edge: {}

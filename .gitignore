@@ -1,0 +1,20 @@
+.env
+# Any other env file (secrets live in ~/.config/sounding, see LOCAL_DEV.md); the example is tracked.
+.env.*
+!.env.example
+*.env
+.envrc
+AGENTS.local.md
+config/profile.yaml
+data/
+backups/
+__pycache__
+.venv
+.pytest_cache
+node_modules
+.DS_Store
+.claude/settings.local.json
+.claude/worktrees/
+
+# Agent hand-off notes (specs/agent-workflow.md)
+.handoff/

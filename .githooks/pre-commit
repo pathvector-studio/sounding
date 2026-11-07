@@ -1,0 +1,7 @@
+#!/bin/sh
+# Enabled with: git config core.hooksPath .githooks
+python3 scripts/check-private-info.py --staged --author || exit 1
+# Secrets in the staged changes, if gitleaks is installed (CI always runs it on the whole history).
+if command -v gitleaks >/dev/null 2>&1; then
+  exec gitleaks git --pre-commit --staged --redact --no-banner
+fi

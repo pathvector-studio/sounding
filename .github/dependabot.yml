@@ -1,0 +1,13 @@
+# Weekly dependency updates. Ecosystems for the backend (uv, Dockerfile) are added with the first code.
+version: 2
+updates:
+  # Images pinned in docker-compose.yml
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

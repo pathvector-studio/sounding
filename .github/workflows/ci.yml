@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Local-environment details and secrets must not reach the public repository (AGENTS.md 4.3).
+  private-info:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Files
+        run: python3 scripts/check-private-info.py
+      - name: Commits in this pull request (e-mails and messages)
+        if: github.event_name == 'pull_request'
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/check-private-info.py --commits "$RANGE"
+      - name: All commits (e-mails and messages)
+        if: github.event_name != 'pull_request'
+        run: python3 scripts/check-private-info.py --commits HEAD
+      # The binary, not gitleaks-action (which needs a license for organizations).
+      - name: gitleaks (all history, values redacted)
+        run: docker run --rm -v "$PWD:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.28.0 git /repo --redact --no-banner --log-opts=--all
+
+  # The compose file stays valid with the dummy values of .env.example.
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: cp .env.example .env && docker compose config -q
+
+  # Backend tests, frontend checks and the installer job are added with the first code (docs/DESIGN.md §9).

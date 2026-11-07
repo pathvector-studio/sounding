@@ -1,0 +1,30 @@
+name: Changelog
+
+# Every pull request adds its lines under [Unreleased] in CHANGELOG.md (see RELEASING.md#changelog).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # Decided in a step, not with a job-level if: a skipped job does not replace the failure of the run
+      # that started before the label was added (gh pr create --label adds it after opening).
+      - name: CHANGELOG.md is updated
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          EXEMPT: ${{ github.event.pull_request.user.login == 'dependabot[bot]' || contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        run: |
+          if [ "$EXEMPT" = true ]; then echo "Exempt (skip-changelog label or Dependabot)."; exit 0; fi
+          if ! git diff --name-only "$BASE...$HEAD" | grep -qx CHANGELOG.md; then
+            echo "::error::Add a line under [Unreleased] in CHANGELOG.md, or label the PR skip-changelog (CI, tests, typos)."
+            exit 1
+          fi
