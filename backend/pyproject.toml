@@ -1,0 +1,29 @@
+[project]
+name = "sounding-backend"
+version = "0.0.0"  # the release version lives in ../VERSION (RELEASING.md)
+description = "Sounding worker: fetch, store and (later) summarize where technical discussions stand"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.13",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "pyyaml>=6.0",
+    "feedparser>=6.0",
+    "httpx>=0.27",
+    "apscheduler>=3.10,<4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-p no:cacheprovider"
