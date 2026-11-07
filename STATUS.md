@@ -5,10 +5,10 @@
 ## 進行中
 | タスク | リポジトリ / ブランチ | 担当 | 状態 |
 |---|---|---|---|
-| 段 0 スパイクの spec | `spec/phase0` | 親 | PR を作成、承認待ち |
+| 段 0 スパイクの実装 | `spike/phase0` | 親 + subagent | 着手 |
 
 ## 承認待ち
-- 段 0（スパイク）の spec：`specs/phase0.md`（PR）。要判断 4 問（主手段の仮説、匿名 IMAP のメールアドレス、取得範囲、スパイクのコードの置き場）
+- なし
 
 ## 予定
 - 段 0 スパイク：IETF ML の取得手段（IMAP / HTTP）の確認、1 つの WG の 1 か月分でスレッド化と前処理の削減率を測る
@@ -18,6 +18,7 @@
 - なし
 
 ## 直近の完了
+- 段 0 スパイクの spec を承認（2026-11-07、要判断はすべて (a)）
 - GitHub のリポジトリ設定を biblioflow と揃えた（2026-11-07）：main のルールセット、secret scanning と push protection、Dependabot のセキュリティ更新、マージ後のブランチ削除、`skip-changelog` ラベル
 - GitHub への最初の push（2026-11-07）。push 前の検査（private-info・全履歴・gitleaks）と CI（private-info・compose）はすべて通過
 - 紹介サイトに名前の由来を必ず載せる、を `AGENTS.md` と `docs/DESIGN.md` 4.4 に追記
