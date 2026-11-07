@@ -5,13 +5,13 @@
 ## 進行中
 | タスク | リポジトリ / ブランチ | 担当 | 状態 |
 |---|---|---|---|
-| 段 0 スパイクの実装 | `spike/phase0` | 親 + subagent | 測定済み、PR |
+| 段 1 の spec | `spec/phase1` | 親 | PR を作成、承認待ち |
 
 ## 承認待ち
-- なし
+- 段 1 の spec：`specs/phase1.md`（PR）。要判断 4 問（DB アクセスの方式、初回に遡る期間、web コンテナの扱い、送信者の扱い）と依存の追加
 
 ## 予定
-- 段 1 の spec（`SourceAdapter`、RSS・IETF ML の取得、DB、`job_runs`）
+- 段 1 の実装（spec の承認後、PR 5 本）
 - 段 1〜4（`specs/roadmap.md`）
 
 ## 詰まり
