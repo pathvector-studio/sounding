@@ -10,8 +10,8 @@
 ## MVP（`docs/DESIGN.md` 9 章）
 | 段 | 内容 | 状態 |
 |---|---|---|
-| 0 | スパイク：IETF ML の取得手段、スレッド化と前処理の削減率 | 次 |
-| 1 | `SourceAdapter`、RSS・IETF ML の取得、DB、`job_runs` | |
+| 0 | スパイク：IETF ML の取得手段、スレッド化と前処理の削減率 | 完了（`docs/spike-phase0.md`） |
+| 1 | `SourceAdapter`、RSS・IETF ML の取得、DB、`job_runs` | 次 |
 | 2 | LLM 抽象化、「現在地」生成、差分要約、キャッシュ、予算 | |
 | 3 | 選別、ダイジェスト、Web UI、配信（メール・Webhook・Atom） | |
 | 4 | install.sh、公開モード、バックアップ、紹介サイト `site/` | |

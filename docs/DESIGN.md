@@ -59,17 +59,17 @@
 
 **MVP から外す**：上の拡張すべて、マルチユーザー、Web UI でのプロファイル編集、通知のリアルタイム化。
 
-### 1.3 IETF ML の取得手段（要検証）
+### 1.3 IETF ML の取得手段（段 0 で決定、2026-11-07）
 
-実装前に小さなスパイクで確かめる必要がある。候補：
+測定と根拠は `docs/spike-phase0.md`。
 
-| 手段 | 長所 | 懸念 |
+| 手段 | 位置づけ | 要点 |
 |---|---|---|
-| IMAP（RFC 7017 の要件に基づく匿名アクセス） | リスト単位・メッセージ単位で差分取得しやすい。Message-ID / In-Reply-To でスレッド化できる | 実際のサーバー名・認証方式・レート制限を確認する |
-| mailarchive.ietf.org の Web / エクスポート / フィード | HTTP だけで済む | 提供形式と利用条件を確認する |
-| 旧 FTP の月次 mbox（`ietf-mail-archive/<list>/YYYY-MM.mail`） | 単純 | 2022 年で更新が止まっているリストがあり、現行の手段ではない |
+| **匿名 IMAP**（`imap.ietf.org:993`、TLS） | **主手段** | ユーザー `anonymous`、パスワードは `FETCH_CONTACT`。リストは `Shared Folders/<list>`。`UIDVALIDITY` ＋ `UID` で差分取得。`THREAD=REFERENCES`・`CONDSTORE`・`QRESYNC` あり（ログイン後に通知される）。`ID` コマンドは非対応 |
+| rsync の月次 mbox（`rsync.ietf.org::mailman-archive/<list>/YYYY-MM.mail`） | 予備 | 認証なし。IMAP と Message-ID・ヘッダー・本文が一致（sidrops 1 か月で 146/146）。差分は月単位で粗く、過去月のファイルも後から書き換わる |
+| mailarchive.ietf.org | 出典リンクだけ | `/arch/msg/<list>/<id>/` の恒久 URL をダイジェストの出典にする。エクスポートはログイン必須で `robots.txt` が禁止、フィードはない |
 
-どの手段でも、取得は**低頻度（例：1 時間ごと）・差分のみ・丁寧な User-Agent** を守る。
+取得は**低頻度（1 時間ごと）・差分のみ・接続 1 本**を守る。自動送信メール（`Auto-Submitted`、Datatracker 通知）は要約の入力から外すが、捨てずに「手続きの更新」のイベントとして扱う（3.4 の枠）。
 
 ---
 

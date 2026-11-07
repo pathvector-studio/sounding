@@ -5,19 +5,20 @@
 ## 進行中
 | タスク | リポジトリ / ブランチ | 担当 | 状態 |
 |---|---|---|---|
-| 段 0 スパイクの実装 | `spike/phase0` | 親 + subagent | 着手 |
+| 段 0 スパイクの実装 | `spike/phase0` | 親 + subagent | 測定済み、PR |
 
 ## 承認待ち
 - なし
 
 ## 予定
-- 段 0 スパイク：IETF ML の取得手段（IMAP / HTTP）の確認、1 つの WG の 1 か月分でスレッド化と前処理の削減率を測る
+- 段 1 の spec（`SourceAdapter`、RSS・IETF ML の取得、DB、`job_runs`）
 - 段 1〜4（`specs/roadmap.md`）
 
 ## 詰まり
 - なし
 
 ## 直近の完了
+- 段 0 スパイクの測定（2026-11-07）：取得は匿名 IMAP が主・rsync が予備。スレッド化はサーバーと 100% 一致、前処理で本文の約 36% に削減、main 入力は 1 日 7 万トークン前後（`docs/spike-phase0.md`）
 - 段 0 スパイクの spec を承認（2026-11-07、要判断はすべて (a)）
 - GitHub のリポジトリ設定を biblioflow と揃えた（2026-11-07）：main のルールセット、secret scanning と push protection、Dependabot のセキュリティ更新、マージ後のブランチ削除、`skip-changelog` ラベル
 - GitHub への最初の push（2026-11-07）。push 前の検査（private-info・全履歴・gitleaks）と CI（private-info・compose）はすべて通過
