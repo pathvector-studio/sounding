@@ -394,3 +394,22 @@ def test_failed_source_does_not_stop_others(session):
             feeds=(FEED, "https://example.com/b.xml"))
     outs = e.run()
     assert sorted(o.status for o in outs) == ["failed", "ok"]
+
+
+def test_rss_runs_without_identity_secret_while_ietf_is_skipped(session):
+    from fake_imap import FakeServer  # noqa: PLC0415 - sibling test helper
+    from sounding.sources.ietf_mail import IetfMailAdapter
+
+    settings = make_settings(identity_secret="")
+    server = FakeServer()
+    server.add_list("sidrops")
+    ietf = IetfMailAdapter(settings, client_factory=server.factory, sleep=lambda s: None, clock=lambda: NOW)
+    rss = RssAdapter(settings, transport=httpx.MockTransport(Feeds({FEED: ok(RSS2)})), clock=lambda: NOW)
+    profile = Profile(ietf=Ietf(working_groups=["sidrops"]), feeds=[Feed(url=FEED)])
+    outs = run_fetch(
+        get_session_factory(), settings, adapters={"ietf_mail": ietf, "rss": rss}, profile=profile, now=NOW
+    )
+    assert [(o.kind, o.status, o.error) for o in outs] == [
+        ("ietf_mail", "skipped", "identity_secret_not_set"), ("rss", "ok", None),
+    ]
+    assert not server.commands

@@ -31,7 +31,7 @@ Sounding は、追うべき一次情報が多すぎる専門職（まずネッ�
 |---|---|---|
 | 立ち上げ（調査・命名・設計・雛形・開発の仕組み） | ✅ 完了 | `docs/SURVEY.md`、`docs/DESIGN.md` |
 | 0. スパイク（IETF ML の取得手段、削減率の測定） | ✅ 完了 | `docs/spike-phase0.md`。取得は匿名 IMAP が主 |
-| 1. `SourceAdapter`・取得・DB | 未着手（次） | spec を書いて承認をもらう |
+| 1. `SourceAdapter`・取得・DB | 実装中（5/5） | `specs/phase1.md` |
 | 2〜4 | 未着手 | `docs/DESIGN.md` 9 章 |
 
 ### 4.2 確定済みの設計判断（再検討しない）
@@ -64,4 +64,20 @@ git fetch && git status
 cat STATUS.md                            # 進行中・承認待ち・詰まり
 cat AGENTS.local.md                      # ローカル固有のこと（なければユーザーに聞く）
 ```
-アプリの実装が入ったら、ここに起動とテストの手順を足す。
+
+起動（環境ファイルと `config/profile.yaml` を用意したあと。手順の詳細は `README.md`）：
+```bash
+docker compose up -d --build
+docker compose exec sounding-worker python -m sounding status
+docker compose exec sounding-worker python -m sounding fetch --once    # 手動で 1 回取得
+```
+テスト（実 PostgreSQL。スキップは不可）：
+```bash
+docker run -d --rm --name sounding-test-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=sounding_test \
+  -p 127.0.0.1:55432:5432 postgres:16
+cd backend && TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@127.0.0.1:55432/sounding_test \
+  uv run pytest -q -rs -p no:cacheprovider
+docker stop sounding-test-db
+```
+ホストで直接動かすときは `cd backend && uv run python -m sounding fetch --once`（`DATABASE_URL` などを環境に出しておく）。
+イメージは名前付きコンテキストでビルドする：`docker build --build-context repo=. backend`（`VERSION` を入れるため）。

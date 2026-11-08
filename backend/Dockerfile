@@ -26,8 +26,10 @@ COPY --from=builder /app/.venv /app/.venv
 COPY pyproject.toml alembic.ini ./
 COPY alembic ./alembic
 COPY sounding ./sounding
+# The repo root VERSION (named build context "repo": `docker build --build-context repo=. backend`).
+COPY --from=repo --chmod=0644 VERSION ./VERSION
 # Pre-compiled: the root filesystem is read-only, so Python cannot write .pyc files at run time.
 RUN python -m compileall -q sounding alembic
 USER app
-# The worker and web entry points arrive in later phases (specs/phase1.md); the CLI works now.
-CMD ["python", "-m", "sounding", "status"]
+# The web entry point arrives in phase 3; `python -m sounding <command>` is the CLI.
+CMD ["python", "-m", "sounding.worker"]

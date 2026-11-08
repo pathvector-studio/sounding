@@ -42,7 +42,7 @@
 
 ## 開発状況
 
-**設計段階（実装なし、v0.0.0）**。現在あるのは設計ドキュメント、開発の仕組み、リポジトリの骨格だけです。
+**段 1（取得だけ）まで実装済み（v0.0.0）**。IETF メーリングリスト（匿名 IMAP）と RSS/Atom を PostgreSQL に取り込むところまでで、要約・選別・配信はまだありません。
 
 | ドキュメント | 内容 |
 |---|---|
@@ -51,7 +51,23 @@
 | [specs/roadmap.md](specs/roadmap.md) | MVP と、その後の情報源の拡張 |
 | [STATUS.md](STATUS.md) | 進行中・承認待ち・予定・詰まり |
 
-`docker-compose.yml` と `.env.example` は骨格のみで、まだ起動できません。
+## 起動手順
+
+Docker Compose が必要です。
+
+1. `.env.example` を `.env` にコピーし、`POSTGRES_PASSWORD`、`FETCH_CONTACT`（連絡先のメールアドレス）、`IDENTITY_SECRET`（`openssl rand -hex 32` で生成。最初の起動のあとは変えない）を設定する
+2. `cp config/profile.example.yaml config/profile.yaml` し、追いたい WG・リスト・フィードを書く
+3. `docker compose up -d --build`
+4. 動作を確認する
+   ```bash
+   docker compose exec sounding-worker python -m sounding status
+   docker compose exec sounding-worker python -m sounding sources
+   ```
+
+worker は起動直後に 1 回取得し、その後は `FETCH_INTERVAL_MINUTES` ごとに取得します。`CONTENT_RETENTION_DAYS` を過ぎた本文は毎日 03:30 に消します（メタデータは残す）。`FETCH_CONTACT` と `IDENTITY_SECRET` のどちらかが未設定のあいだ、IETF のリストは取得されません（RSS は動きます）。Web UI は段 3 で入るため、`sounding-web` は既定では起動しません。
+
+- `FETCH_CONTACT` は、IETF の匿名 IMAP のパスワードと、RSS 取得時の User-Agent に入ります（IETF の案内どおり）。
+- フィードの URL は指定されたとおりに取得します。記事のページはたどらないので、robots.txt は参照しません。
 
 ## 開発に参加する
 

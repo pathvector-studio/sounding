@@ -46,3 +46,9 @@ def test_secrets_are_hidden_in_repr(env):
     for value in ("s3cret-identity-value", "private@example.com", "dbpass-dummy"):
         assert value not in shown
     assert s.identity_secret.get_secret_value() == "s3cret-identity-value"
+
+
+def test_identity_secret_is_set_property(env):
+    for value, expected in (("", False), ("   ", False), ("change-me-x", False), ("0123abcd", True)):
+        env.setenv("IDENTITY_SECRET", value)
+        assert Settings().identity_secret_is_set is expected

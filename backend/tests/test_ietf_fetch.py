@@ -415,3 +415,14 @@ def test_secrets_and_addresses_never_reach_logs_or_errors(session, caplog):
     for secret in (CONTACT, SECRET, SENDER_ADDR):
         assert secret not in stored
     assert caplog.records  # something was logged (the test is not vacuous)
+
+
+def test_identity_secret_not_set_skips_ietf_without_connecting(session):
+    for secret in ("", "change-me-identity-secret"):
+        env = Env(session, identity_secret=secret)
+        env.add("a1@example.com", "One", days_ago(1))
+        out = env.one()
+        assert out.status == "skipped" and out.error == "identity_secret_not_set"
+        assert out.counts == {"reason": "identity_secret_not_set"}
+        assert env.server.connections == 0 and not env.server.commands
+        assert env.count(ItemRow) == 0
