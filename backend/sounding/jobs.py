@@ -19,7 +19,7 @@ from sounding.config import Settings
 from sounding.ingest import ingest_items
 from sounding.models import JobRun, Source
 from sounding.profile import Profile, load_profile, sync_sources
-from sounding.sources.base import SourceAdapter, SourceError
+from sounding.sources.base import AncestorFetcher, SourceAdapter, SourceError
 
 log = logging.getLogger(__name__)
 
@@ -40,8 +40,9 @@ class SourceOutcome:
 
 def default_adapters(settings: Settings) -> dict[str, SourceAdapter]:
     from sounding.sources.ietf_mail import IetfMailAdapter
+    from sounding.sources.rss import RssAdapter
 
-    return {"ietf_mail": IetfMailAdapter(settings)}
+    return {"ietf_mail": IetfMailAdapter(settings), "rss": RssAdapter(settings)}
 
 
 def _finish(
@@ -105,7 +106,7 @@ def _fetch_one(
             new_cursor = dict(result.cursor) if result.cursor is not None else None
             if result.notes:
                 counts["notes"] = list(result.notes)
-            if not result.error and new_cursor is not None:
+            if not result.error and new_cursor is not None and isinstance(adapter, AncestorFetcher):
                 missing = list(new_cursor.get("missing_ids") or [])
                 anc = complete_ancestors(
                     session, source, adapter, result.items, missing_ids=missing,

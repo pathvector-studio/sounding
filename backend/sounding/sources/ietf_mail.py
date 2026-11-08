@@ -20,7 +20,6 @@ from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from email.message import EmailMessage
 from email.utils import parsedate_to_datetime
-from html.parser import HTMLParser
 from typing import Any, ClassVar
 
 from sounding.classify import classify_auto
@@ -29,6 +28,7 @@ from sounding.conversations import normalize_msgid
 from sounding.identity import sender_identity
 from sounding.models import Source
 from sounding.sources.base import ConversationHints, FetchResult, Item, SourceError
+from sounding.text import html_to_text
 
 log = logging.getLogger(__name__)
 
@@ -58,47 +58,6 @@ def _default_factory(host: str, port: int, timeout: float) -> Any:
 def imap_date(day: datetime) -> str:
     """``01-Oct-2026`` (English month names regardless of locale)."""
     return f"{day.day:02d}-{_MONTHS[day.month - 1]}-{day.year}"
-
-
-class _TextExtractor(HTMLParser):
-    _BLOCK = {"p", "br", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre", "table"}
-    _SKIP = {"script", "style", "head", "title"}
-
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.parts: list[str] = []
-        self._skip_depth = 0
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in self._SKIP:
-            self._skip_depth += 1
-        elif tag in self._BLOCK:
-            self.parts.append("\n")
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag in self._SKIP:
-            self._skip_depth = max(0, self._skip_depth - 1)
-        elif tag in self._BLOCK:
-            self.parts.append("\n")
-
-    def handle_data(self, data: str) -> None:
-        if not self._skip_depth:
-            self.parts.append(data)
-
-
-def html_to_text(markup: str) -> str:
-    parser = _TextExtractor()
-    try:
-        parser.feed(markup)
-        parser.close()
-    except Exception:  # noqa: BLE001 - broken markup: keep what was extracted so far
-        pass
-    lines = [re.sub(r"[ \t\r\f\v]+", " ", ln).strip() for ln in "".join(parser.parts).split("\n")]
-    out: list[str] = []
-    for ln in lines:
-        if ln or (out and out[-1]):
-            out.append(ln)
-    return "\n".join(out).strip()
 
 
 def _part_text(part: EmailMessage) -> str:
