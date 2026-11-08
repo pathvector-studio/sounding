@@ -1,0 +1,25 @@
+# Copy to config/profile.yaml (git-ignored) and edit. Without that file Sounding tracks nothing.
+profile:
+  language: en
+  digest:
+    schedule: "0 7 * * *"
+    max_threads: 10
+    max_items: 15
+
+ietf:
+  working_groups:        # each name is also the mailing list name
+    - sidrops
+    - grow
+  drafts:                # used by selection (phase 3)
+    - draft-ietf-sidrops-aspa-
+  extra_lists: []        # lists that are not working groups
+
+feeds:
+  - url: https://example.com/feed.xml
+    weight: 1.0
+
+keywords:
+  include: [RPKI, ASPA, "route leak"]
+  exclude: []
+
+people: []
