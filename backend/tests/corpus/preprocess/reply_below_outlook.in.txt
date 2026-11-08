@@ -1,0 +1,12 @@
+From: Bob Example <bob@example.com>
+Sent: Monday, November 2, 2026 9:15 AM
+To: wg@example.com
+Subject: Re: [wg] Adoption call for draft-example-widget
+
+> Please state whether you support adoption.
+> Thanks,
+> Bob
+
+I support adoption, but section 4 needs work.
+
+Also, the examples in the appendix use a reserved ASN, which is fine.

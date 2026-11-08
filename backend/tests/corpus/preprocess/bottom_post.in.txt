@@ -1,0 +1,5 @@
+On Mon, 2 Nov 2026 at 09:15, Bob Example <bob@example.com> wrote:
+> Should section 3.2 change?
+> I think the old text was ambiguous.
+
+Yes, I think we should clarify it.

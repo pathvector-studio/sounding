@@ -1,0 +1,10 @@
+Hi Bob,
+
+[quoted] Do you support aggregation in the first version?
+No, we dropped it in -01.
+
+[quoted] And what about the maxLength handling? It is unclear to me.
+That is still open; see the issue tracker.
+
+[quoted] Anything else?
+No.
