@@ -42,7 +42,7 @@
 
 ## 開発状況
 
-**段 1（取得だけ）まで実装済み（v0.0.0）**。IETF メーリングリスト（匿名 IMAP）と RSS/Atom を PostgreSQL に取り込むところまでで、要約・選別・配信はまだありません。
+**段 2（会話ごとの「議論の現在地」の生成）まで実装済み**。IETF メーリングリスト（匿名 IMAP）と RSS/Atom を PostgreSQL に取り込み、IETF の会話（スレッド）ごとに「何が争点か・合意はどこまでか・何が未決着か・前回から何が動いたか」を LLM で要約して版ごとに保存します（新着があった会話だけを前回の状態からの差分で更新）。保存した現在地は `show` で読めます。選別・ダイジェスト・配信・Web UI はまだありません（段 3）。RSS 項目の要約も段 3 です。
 
 | ドキュメント | 内容 |
 |---|---|
@@ -65,6 +65,26 @@ Docker Compose が必要です。
    ```
 
 worker は起動直後に 1 回取得し、その後は `FETCH_INTERVAL_MINUTES` ごとに取得します。`CONTENT_RETENTION_DAYS` を過ぎた本文は毎日 03:30 に消します（メタデータは残す）。`FETCH_CONTACT` と `IDENTITY_SECRET` のどちらかが未設定のあいだ、IETF のリストは取得されません（RSS は動きます）。Web UI は段 3 で入るため、`sounding-web` は既定では起動しません。
+
+## LLM による要約（段 2）
+
+既定は `LLM_PROVIDER=none` で、キーを入れるまで何も外に送りません（要約ジョブは `skipped`（`llm_disabled`）を残して終わります）。有効にするには `.env` に次を設定し、worker を再作成します。
+
+- `LLM_PROVIDER=anthropic` または `openai`、`LLM_API_KEY`（利用者自身のキー）
+- `LLM_MODEL_MAIN`（「現在地」の生成）と `LLM_MODEL_CHEAP`（長い会話の分割要約）。anthropic は空か `change-me` のままなら既定（main `claude-opus-5-5`、cheap `claude-haiku-5-5`）。openai は既定がないので両方を明示する
+- `LLM_DAILY_BUDGET_USD`（既定 1.00。0 は無制限）
+
+要約は毎日 06:00（`TZ`）に worker が実行します。手動では次のとおりです。
+
+```bash
+docker compose exec sounding-worker python -m sounding summarize --once [--conversation ID]
+docker compose exec sounding-worker python -m sounding show <会話 ID> [--language ja]
+```
+
+- **外に送るもの**：件名、前処理した本文（引用・署名・定型フッターを除き、メールアドレスは伏せたもの）、送信者の表示名。選んだプロバイダへ送られます。キーは worker だけが受け取り、ログにもデータベースにも出しません。
+- **費用の上限**：1 日（`TZ` の暦日）の推定費用が `LLM_DAILY_BUDGET_USD` に達するとその日の残りの要約を止め、止めた会話の ID を `job_runs`（`python -m sounding status` で見える）に「予算超過のため未要約」として残します。同じ入力の再実行は記録済みの結果を使うので課金されません。`status` で当日の費用を確認できます。
+- **作り直せない場合**：取得した本文は `CONTENT_RETENTION_DAYS`（既定 90 日）を過ぎると消えるため、それより古い会話は状態を作り直せません（保存済みの状態は残ります）。
+- 表示言語は `config/profile.yaml` の `profile.language`（既定 `en`）です。
 
 - `FETCH_CONTACT` は、IETF の匿名 IMAP のパスワードと、RSS 取得時の User-Agent に入ります（IETF の案内どおり）。
 - フィードの URL は指定されたとおりに取得します。記事のページはたどらないので、robots.txt は参照しません。

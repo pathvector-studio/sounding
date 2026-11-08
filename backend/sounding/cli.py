@@ -78,6 +78,12 @@ def format_status(session: Session, settings: Settings | None = None) -> str:
             f"events={events.get(s.id, 0)}{'' if s.enabled else ' (disabled)'}"
         )
     lines.append(format_llm_status(session, settings))
+    last = session.scalar(select(JobRun).where(JobRun.job == "summarize").order_by(JobRun.started_at.desc(), JobRun.id.desc()).limit(1))
+    if last is None:
+        lines.append("last summarize: (never)")
+    else:
+        reason = f" error={last.error}" if last.error else ""
+        lines.append(f"last summarize: {last.started_at.isoformat()} {last.status}{reason} counts={last.counts}")
     return "\n".join(lines)
 
 
@@ -146,6 +152,64 @@ def cmd_retention(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_summarize(args: argparse.Namespace) -> int:
+    from sounding.config import get_settings
+    from sounding.db import get_session_factory
+    from sounding.jobs import run_summarize
+    from sounding.profile import ProfileError
+
+    if not args.once:
+        print("only --once is supported here; the scheduled summarize is run by the worker", file=sys.stderr)
+        return 2
+    try:
+        report = run_summarize(get_session_factory(), get_settings(), only_conversation=args.conversation)
+    except ProfileError as exc:
+        print(f"profile error: {exc}", file=sys.stderr)
+        return 1
+    if report.status == "skipped":
+        print("summarize skipped: LLM_PROVIDER is none (nothing was sent)")
+        return 0
+    for o in report.outcomes:
+        extra = f" {o.code}" if o.code else (f" v{o.version}" if o.version else "")
+        print(f"conversation {o.conversation_id}: {o.status}{extra}")
+    for cid in report.budget_skipped_ids:
+        print(f"conversation {cid}: not summarized (daily budget exceeded)")
+    c = report.counts
+    print(
+        f"summarize: {report.status}{' (' + report.reason + ')' if report.reason else ''} selected={c['selected']} "
+        f"created={c['created']} updated={c['updated']} rebuilt={c['rebuilt']} no_new={c['no_new']} "
+        f"failed={c['failed']} budget_skipped={c['budget_skipped']} llm_calls={c['llm_calls']} cost=${c['cost_usd']}"
+    )
+    return 1 if report.reason == "config_error" else 0
+
+
+def cmd_show(args: argparse.Namespace) -> int:
+    from sounding.config import get_settings
+    from sounding.db import session_scope
+    from sounding.models import ConversationState
+    from sounding.profile import ProfileError, load_profile
+    from sounding.state import render_state
+
+    language = args.language
+    if not language:
+        try:
+            language = load_profile(get_settings().profile_path).profile.language or "en"
+        except ProfileError:
+            language = "en"
+    with session_scope() as session:
+        row = session.scalar(
+            select(ConversationState)
+            .where(ConversationState.conversation_id == args.conversation_id, ConversationState.language == language)
+            .order_by(ConversationState.version.desc())
+            .limit(1)
+        )
+        if row is None:
+            print(f"no state for conversation {args.conversation_id} in language {language} (run: summarize --once)")
+            return 0
+        print(render_state(row))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m sounding")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -159,6 +223,14 @@ def build_parser() -> argparse.ArgumentParser:
     retention = sub.add_parser("retention", help="clear old item bodies (CONTENT_RETENTION_DAYS)")
     retention.add_argument("--once", action="store_true", help="run once and exit")
     retention.set_defaults(func=cmd_retention)
+    summarize = sub.add_parser("summarize", help="generate 'where it stands' for conversations with new messages")
+    summarize.add_argument("--once", action="store_true", help="run once and exit")
+    summarize.add_argument("--conversation", type=int, metavar="ID", help="only this conversation id")
+    summarize.set_defaults(func=cmd_summarize)
+    show = sub.add_parser("show", help="print the latest stored state of a conversation")
+    show.add_argument("conversation_id", type=int)
+    show.add_argument("--language", metavar="xx", help="state language (default: profile.language)")
+    show.set_defaults(func=cmd_show)
     return parser
 
 

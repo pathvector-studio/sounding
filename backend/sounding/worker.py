@@ -1,7 +1,7 @@
 """The worker: ``python -m sounding.worker``.
 
 Runs migrations, then a blocking APScheduler loop (``fetch`` every FETCH_INTERVAL_MINUTES and once at
-start, ``retention`` daily at 03:30). Each run takes a PostgreSQL advisory lock so that a second worker
+start, ``retention`` daily at 03:30, ``summarize`` daily at 06:00 and only when LLM_PROVIDER is set). Each run takes a PostgreSQL advisory lock so that a second worker
 never runs the same job at the same time. SIGTERM / SIGINT stop scheduling and let a running fetch
 finish its current source.
 """
@@ -21,12 +21,13 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from sounding.config import Settings
-from sounding.jobs import SessionFactory, advisory_lock, record_skipped, run_fetch, run_retention
+from sounding.jobs import SessionFactory, advisory_lock, record_skipped, run_fetch, run_retention, run_summarize
 from sounding.profile import ProfileError
 
 log = logging.getLogger("sounding.worker")
 
 RETENTION_HOUR, RETENTION_MINUTE = 3, 30
+SUMMARIZE_HOUR, SUMMARIZE_MINUTE = 6, 0
 
 
 def startup_summary(settings: Settings) -> dict[str, object]:
@@ -87,6 +88,13 @@ class Worker:
 
         self._run_locked("retention", go)
 
+    def summarize_job(self) -> None:
+        def go() -> None:
+            report = run_summarize(self.session_factory, self.settings, stop=self.stop)
+            log.info("summarize finished: %s %s", report.status, report.reason or "")
+
+        self._run_locked("summarize", go)
+
     def wait_idle(self) -> None:
         with self._cond:
             self._cond.wait_for(lambda: self._active == 0)
@@ -108,6 +116,11 @@ def build_scheduler(
         worker.retention_job,
         CronTrigger(hour=RETENTION_HOUR, minute=RETENTION_MINUTE, timezone=tz),
         id="retention", name="retention", max_instances=1, coalesce=True,
+    )
+    scheduler.add_job(
+        worker.summarize_job,
+        CronTrigger(hour=SUMMARIZE_HOUR, minute=SUMMARIZE_MINUTE, timezone=tz),
+        id="summarize", name="summarize", max_instances=1, coalesce=True,
     )
     return scheduler
 
