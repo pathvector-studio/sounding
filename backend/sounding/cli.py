@@ -74,11 +74,60 @@ def cmd_status(_args: argparse.Namespace) -> int:
     return 0
 
 
+def format_sources(session: Session) -> str:
+    sources = session.scalars(select(Source).order_by(Source.kind, Source.key)).all()
+    if not sources:
+        return "(no sources; add some to the profile)"
+    lines = []
+    for s in sources:
+        fetched = s.last_fetched_at.isoformat() if s.last_fetched_at else "never"
+        lines.append(
+            f"{s.kind} {s.key} enabled={'yes' if s.enabled else 'no'} last_fetched={fetched} "
+            f"status={s.last_status or '-'} consecutive_failures={s.consecutive_failures or 0}"
+        )
+    return "\n".join(lines)
+
+
+def cmd_sources(_args: argparse.Namespace) -> int:
+    from sounding.db import session_scope
+
+    with session_scope() as session:
+        print(format_sources(session))
+    return 0
+
+
+def cmd_fetch(args: argparse.Namespace) -> int:
+    from sounding.config import get_settings
+    from sounding.db import get_session_factory
+    from sounding.jobs import run_fetch
+    from sounding.profile import ProfileError
+
+    if not args.once:
+        print("only --once is supported here; the scheduled fetch is run by the worker", file=sys.stderr)
+        return 2
+    try:
+        outcomes = run_fetch(get_session_factory(), get_settings(), only_source=args.source)
+    except ProfileError as exc:
+        print(f"profile error: {exc}", file=sys.stderr)
+        return 1
+    if not outcomes:
+        print("nothing to fetch (no matching enabled source with an adapter)")
+    for o in outcomes:
+        detail = f" error={o.error}" if o.error else ""
+        print(f"{o.kind} {o.key}: {o.status} {o.counts}{detail}")
+    return 1 if any(o.status == "failed" for o in outcomes) else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m sounding")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("migrate", help="alembic upgrade head").set_defaults(func=cmd_migrate)
     sub.add_parser("status", help="recent job_runs and per-source counts").set_defaults(func=cmd_status)
+    sub.add_parser("sources", help="sources and their state").set_defaults(func=cmd_sources)
+    fetch = sub.add_parser("fetch", help="fetch sources")
+    fetch.add_argument("--once", action="store_true", help="fetch once and exit")
+    fetch.add_argument("--source", metavar="KEY", help="only this source (list name or feed URL)")
+    fetch.set_defaults(func=cmd_fetch)
     return parser
 
 

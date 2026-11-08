@@ -27,3 +27,33 @@ def test_migrate_and_status_commands(infra, capsys):
     assert main(["status"]) == 0
     out = capsys.readouterr().out
     assert "migrated to head" in out and "recent job_runs:" in out
+
+
+def test_sources_and_fetch_commands(infra, session, tmp_path, monkeypatch, capsys):
+    from fake_imap import FakeServer, make_mail
+
+    from sounding import jobs
+    from sounding.config import get_settings
+    from sounding.sources.ietf_mail import IetfMailAdapter
+
+    profile = tmp_path / "profile.yaml"
+    profile.write_text("ietf:\n  working_groups: [sidrops]\n")
+    monkeypatch.setenv("PROFILE_PATH", str(profile))
+    get_settings.cache_clear()
+    server = FakeServer()
+    when = datetime.now(UTC)
+    server.add_list("sidrops").add(make_mail("cli1@example.com", "CLI topic", when), when)
+    monkeypatch.setattr(
+        jobs, "default_adapters",
+        lambda s: {"ietf_mail": IetfMailAdapter(s, client_factory=server.factory, sleep=lambda _: None)},
+    )
+    try:
+        assert main(["fetch", "--once", "--source", "sidrops"]) == 0
+        assert "ietf_mail sidrops: ok" in capsys.readouterr().out
+        assert main(["fetch", "--once", "--source", "unknown"]) == 0
+        assert "nothing to fetch" in capsys.readouterr().out
+        assert main(["sources"]) == 0
+        out = capsys.readouterr().out
+        assert "ietf_mail sidrops enabled=yes" in out and "status=ok" in out
+    finally:
+        get_settings.cache_clear()

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     database_url: SecretStr
     tz: str = "Asia/Tokyo"
+    profile_path: str = "config/profile.yaml"
 
     # Fetching
     fetch_interval_minutes: int = 60
