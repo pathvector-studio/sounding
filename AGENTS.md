@@ -24,15 +24,16 @@ Sounding は、追うべき一次情報が多すぎる専門職（まずネッ�
 
 ## 4. 進捗ステータス & 再開手順（エージェントはまずここを読むこと）
 
-> 最終更新: 2026-11-07
+> 最終更新: 2026-11-08
 
 ### 4.1 段の進捗
 | 段 | 状態 | 備考 |
 |---|---|---|
 | 立ち上げ（調査・命名・設計・雛形・開発の仕組み） | ✅ 完了 | `docs/SURVEY.md`、`docs/DESIGN.md` |
 | 0. スパイク（IETF ML の取得手段、削減率の測定） | ✅ 完了 | `docs/spike-phase0.md`。取得は匿名 IMAP が主 |
-| 1. `SourceAdapter`・取得・DB | 実装中（5/5） | `specs/phase1.md` |
-| 2〜4 | 未着手 | `docs/DESIGN.md` 9 章 |
+| 1. `SourceAdapter`・取得・DB | ✅ 完了 | `specs/phase1.md`。IETF ML（IMAP）と RSS を worker が定時取得 |
+| 2. LLM 抽象化・前処理・「現在地」の生成と差分更新 | 未着手（次） | spec を書いて承認をもらう |
+| 3〜4 | 未着手 | `docs/DESIGN.md` 9 章 |
 
 ### 4.2 確定済みの設計判断（再検討しない）
 - 名前は **Sounding**（2026-11-07）。リポジトリ `pathvector-studio/sounding`、サイト `sounding.pathvector.dev`、コンテナ接頭辞 `sounding-`。
