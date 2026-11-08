@@ -2,6 +2,8 @@
 
 `specs/phase0.md` の測定結果と決定。スクリプトと数値の出力は `spike/`（`spike/out/` に数値だけ。取得したメールは `spike/data/` に置き、コミットしない）。対象は sidrops の 2026-10-08 以降の 30 日分（146 通）。
 
+> 段 1（2026-11-08）で `spike/` のコードは削除した。スレッド化は `backend/sounding/conversations.py`、自動送信の判定は `backend/sounding/classify.py` に移した。以下の `spike/` への言及は当時のものである（`spike/data/` は手元に残るだけで、コミットしない）。
+
 ## 結論
 1. **取得手段は匿名 IMAP（`imap.ietf.org`）を主、rsync の月次 mbox を予備**とする（仮説どおり）。`docs/DESIGN.md` 1.3 を更新した。
 2. **スレッド化は自前の JWZ ＋ 件名の補助でサーバーの `THREAD=REFERENCES` と 100% 一致**した。ただし件名の補助は必須（ヘッダーだけでは 69.9%）。
