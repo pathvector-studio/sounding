@@ -14,6 +14,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - `sounding-worker` runs the fetch on a schedule (`FETCH_INTERVAL_MINUTES`, once at start) and clears old message bodies daily (`CONTENT_RETENTION_DAYS`); `python -m sounding` gains `fetch --once`, `retention --once`, `status` and `sources`. `sounding-web` is off by default (`--profile web`) until phase 3.
 
 ### Upgrade notes
+- LLM settings (phase 2): with `LLM_PROVIDER=anthropic`, empty or `change-me` model names now mean `claude-opus-5-5` (main) and `claude-haiku-5-5` (cheap); `openai` needs both models set. Run `python -m sounding migrate` (adds `llm_calls`, `conversation_states`).
 - IETF lists are skipped (job status `skipped`) until both `FETCH_CONTACT` and `IDENTITY_SECRET` are set; RSS still runs. The image is built with `docker build --build-context repo=. backend` (compose does this itself).
 - `.env.example`: `IETF_IMAP_HOST` now defaults to `imap.ietf.org`; new `IETF_RSYNC_BASE`. `FETCH_CONTACT` is sent to IETF as the anonymous IMAP password.
 - New keys for phase 1 (see the example env file): `IDENTITY_SECRET` (generate with `openssl rand -hex 32`; do not change it after the first run, because author keys are derived from it), `IETF_BACKFILL_DAYS`, `IETF_MAX_MESSAGES_PER_RUN`, `IETF_ANCESTOR_MAX_DEPTH`, `IETF_ANCESTOR_MAX_AGE_DAYS`.

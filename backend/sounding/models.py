@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
@@ -14,6 +15,7 @@ from sqlalchemy import (
     Index,
     Integer,
     MetaData,
+    Numeric,
     Text,
     UniqueConstraint,
     false,
@@ -145,3 +147,61 @@ class JobRun(Base):
     status: Mapped[str] = mapped_column(Text)  # ok | failed | skipped
     counts: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class LlmCall(Base):
+    """One row per LLM call attempt (and per reuse). No prompt text is stored, only its hash."""
+
+    __tablename__ = "llm_calls"
+    __table_args__ = (
+        CheckConstraint("tier IN ('cheap', 'main')", name="tier"),
+        CheckConstraint("status IN ('ok', 'failed', 'reused')", name="status"),
+        Index("ix_llm_calls_request_hash", "request_hash"),
+        Index("ix_llm_calls_created_at", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    created_at: Mapped[datetime] = _ts(server_default=_NOW)
+    purpose: Mapped[str] = mapped_column(Text)
+    provider: Mapped[str] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(Text)
+    tier: Mapped[str] = mapped_column(Text)  # cheap | main
+    request_hash: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text)  # ok | failed | reused
+    error: Mapped[str | None] = mapped_column(Text)  # a fixed code (sounding.llm.base), never SDK text
+    input_tokens: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    output_tokens: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 6), server_default=text("0"))
+    duration_ms: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    response_json: Mapped[Any | None] = mapped_column(JSONB)  # only for ok
+    conversation_id: Mapped[int | None] = mapped_column(ForeignKey("conversations.id", ondelete="SET NULL"))
+
+
+class ConversationState(Base):
+    """A version of a conversation's "where it stands", per output language (used from phase 2 item 3)."""
+
+    __tablename__ = "conversation_states"
+    __table_args__ = (UniqueConstraint("conversation_id", "language", "version"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"))
+    language: Mapped[str] = mapped_column(Text)
+    version: Mapped[int] = mapped_column(Integer)
+    state_json: Mapped[Any] = mapped_column(JSONB)
+    changed_since_last: Mapped[str | None] = mapped_column(Text)
+    covered_item_ids: Mapped[list[int]] = mapped_column(ARRAY(BigInteger))
+    last_item_published_at: Mapped[datetime] = _ts()
+    prompt_version: Mapped[str] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(Text)
+    llm_call_id: Mapped[int | None] = mapped_column(ForeignKey("llm_calls.id"))
+    created_at: Mapped[datetime] = _ts(server_default=_NOW)
+
+
+Index(
+    "ix_conversation_states_conversation_id_language_version_desc",
+    ConversationState.conversation_id,
+    ConversationState.language,
+    ConversationState.version.desc(),
+)

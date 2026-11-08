@@ -63,3 +63,15 @@ def test_retention_command(infra, session, capsys):
     assert main(["retention", "--once"]) == 0
     assert "retention: {'cleared': 0}" in capsys.readouterr().out
     assert main(["retention"]) == 2
+
+
+def test_status_shows_llm_spend_and_budget(session):
+    from decimal import Decimal
+
+    from sounding.models import LlmCall
+
+    session.add(LlmCall(purpose="p", provider="anthropic", model="claude-opus-5-5", tier="main", request_hash="h", status="ok", cost_usd=Decimal("0.123456")))
+    session.add(LlmCall(purpose="p", provider="anthropic", model="claude-opus-5-5", tier="main", request_hash="h", status="reused"))
+    session.commit()
+    out = format_status(session)
+    assert "llm today (" in out and "$0.1235 spent" in out and "budget $1.00" in out and "ok=1 failed=0 reused=1" in out

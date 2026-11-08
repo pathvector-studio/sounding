@@ -8,10 +8,18 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from decimal import Decimal
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PLACEHOLDER_PREFIX = "change-me"
+
+
+def is_set(value: str | None) -> bool:
+    """True for a real value: not empty and not a ``change-me-...`` placeholder from .env.example."""
+    value = (value or "").strip()
+    return bool(value) and not value.startswith(_PLACEHOLDER_PREFIX)
 
 
 class Settings(BaseSettings):
@@ -38,18 +46,29 @@ class Settings(BaseSettings):
     ietf_ancestor_max_depth: int = 50
     ietf_ancestor_max_age_days: int = 365
 
+    # LLM (the key is read by the worker only; never logged or stored)
+    llm_provider: str = "none"  # none | anthropic | openai
+    llm_api_key: SecretStr = SecretStr("")
+    llm_model_cheap: str = ""  # empty / change-me: anthropic default, openai = configuration error
+    llm_model_main: str = ""
+    llm_api_base: str = ""  # openai only (compatible servers); empty = the provider's default
+    llm_daily_budget_usd: Decimal = Decimal("1.00")  # 0 = unlimited
+    llm_max_output_tokens: int = 16000
+
     # Author keys are HMAC(identity_secret, address): changing it changes every key.
     identity_secret: SecretStr = SecretStr("")
 
     @property
     def fetch_contact_is_set(self) -> bool:
-        value = self.fetch_contact.get_secret_value().strip()
-        return bool(value) and not value.startswith(_PLACEHOLDER_PREFIX)
+        return is_set(self.fetch_contact.get_secret_value())
 
     @property
     def identity_secret_is_set(self) -> bool:
-        value = self.identity_secret.get_secret_value().strip()
-        return bool(value) and not value.startswith(_PLACEHOLDER_PREFIX)
+        return is_set(self.identity_secret.get_secret_value())
+
+    @property
+    def llm_api_key_is_set(self) -> bool:
+        return is_set(self.llm_api_key.get_secret_value())
 
 
 @lru_cache

@@ -5,7 +5,7 @@ from sqlalchemy import inspect, text
 from sounding.db import get_engine
 from sounding.models import Base
 
-TABLES = {"sources", "items", "conversations", "events", "job_runs"}
+TABLES = {"sources", "items", "conversations", "events", "job_runs", "llm_calls", "conversation_states"}
 
 
 def test_upgrade_on_empty_database(infra):
@@ -14,7 +14,7 @@ def test_upgrade_on_empty_database(infra):
     _reset_schema_and_migrate()  # drops the schema, then runs `alembic upgrade head`
     with get_engine().connect() as conn:
         assert TABLES <= set(inspect(conn).get_table_names())
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0001"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0002"
 
 
 def test_migration_matches_models(infra):
