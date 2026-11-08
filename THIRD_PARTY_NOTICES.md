@@ -23,8 +23,9 @@ rebuilding the image with a different pinned version in `backend/pyproject.toml`
 
 | Package | License |
 |---|---|
-| SQLAlchemy, Alembic (and Mako), pydantic, pydantic-settings, pydantic-core, PyYAML, APScheduler, tzlocal, h11, anyio, annotated-types, typing-inspection | MIT |
-| MarkupSafe, httpx, httpcore, idna, python-dotenv | BSD-3-Clause |
+| SQLAlchemy, Alembic (and Mako), pydantic, pydantic-settings, pydantic-core, PyYAML, APScheduler, tzlocal, h11, anyio, annotated-types, typing-inspection, jiter, docstring-parser, truststore, sniffio | MIT |
+| MarkupSafe, httpx, httpcore, httpx2, httpcore2 (dependencies of the LLM SDKs), idna, python-dotenv | BSD-3-Clause |
+| anthropic, openai (official LLM SDKs), opentelemetry-api | Apache-2.0 |
 | feedparser | BSD-2-Clause |
 | typing_extensions | PSF-2.0 |
 

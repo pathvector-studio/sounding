@@ -45,3 +45,12 @@ def html_to_text(markup: str) -> str:
         if ln or (out and out[-1]):
             out.append(ln)
     return "\n".join(out).strip()
+
+
+# Anything shaped like an address, message-ids included: the LLM never needs addresses (R11).
+_ADDRESS = re.compile(r"[\w.+\-%=/'!#$&*?^`{|}~]+@[\w\-]+(?:\.[\w\-]+)+")
+
+
+def mask_addresses(text: str) -> str:
+    """Replace address-like strings with ``[address]``. Apply to every text sent to an LLM."""
+    return _ADDRESS.sub("[address]", text)

@@ -9,6 +9,7 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from sounding.config import Settings
 from sounding.models import Conversation, Event, Item, JobRun, Source
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -40,7 +41,20 @@ def _counts(session: Session, model: type, column) -> dict[int, int]:
     return {row[0]: row[1] for row in rows}
 
 
-def format_status(session: Session) -> str:
+def format_llm_status(session: Session, settings: Settings) -> str:
+    from sounding.llm import calls_today, spend_today
+
+    budget = settings.llm_daily_budget_usd
+    limit = f"budget ${budget:.2f}" if budget > 0 else "budget unlimited"
+    counts = calls_today(session, settings.tz)
+    done = " ".join(f"{k}={counts.get(k, 0)}" for k in ("ok", "failed", "reused"))
+    return f"llm today ({settings.tz}): ${spend_today(session, settings.tz):.4f} spent, {limit}, provider={settings.llm_provider}, calls {done}"
+
+
+def format_status(session: Session, settings: Settings | None = None) -> str:
+    from sounding.config import get_settings
+
+    settings = settings or get_settings()
     lines = ["recent job_runs:"]
     runs = session.scalars(select(JobRun).order_by(JobRun.started_at.desc(), JobRun.id.desc()).limit(RECENT_JOB_RUNS)).all()
     if not runs:
@@ -63,6 +77,7 @@ def format_status(session: Session) -> str:
             f"  {s.kind} {s.key}: items={items.get(s.id, 0)} conversations={conversations.get(s.id, 0)} "
             f"events={events.get(s.id, 0)}{'' if s.enabled else ' (disabled)'}"
         )
+    lines.append(format_llm_status(session, settings))
     return "\n".join(lines)
 
 
