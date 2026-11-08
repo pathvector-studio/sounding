@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     llm_model_main: str = ""
     llm_api_base: str = ""  # openai only (compatible servers); empty = the provider's default
     llm_daily_budget_usd: Decimal = Decimal("1.00")  # 0 = unlimited
-    llm_max_output_tokens: int = 4000
+    llm_max_output_tokens: int = 16000
 
     # Author keys are HMAC(identity_secret, address): changing it changes every key.
     identity_secret: SecretStr = SecretStr("")

@@ -40,7 +40,7 @@
 8. ログ・DB に `LLM_API_KEY` とメールアドレスが出ない（caplog と全テーブル検索のテスト）。
 
 ## 決めたこと
-- **SDK を使う**（依存の追加、承認事項）：`anthropic`（MIT）と `openai`（Apache-2.0）。httpx で直接書くこともできるが、再試行・タイムアウト・型付きのエラー・構造化出力の仕様変更への追従を SDK に任せた方が保守が軽い。どちらも本番依存のライセンス条件を満たす。
+- **SDK を使う**（依存の追加、承認事項）：`anthropic`（Apache-2.0。spec の初版では MIT と誤記）と `openai`（Apache-2.0）。推移的に `httpx2`・`httpcore2`（BSD-3-Clause）、`jiter`・`docstring-parser`・`truststore`（MIT）、`opentelemetry-api`（Apache-2.0）、`sniffio`（MIT/Apache-2.0）が入る。httpx で直接書くこともできるが、再試行・タイムアウト・型付きのエラー・構造化出力の仕様変更への追従を SDK に任せた方が保守が軽い。どちらも本番依存のライセンス条件を満たす。
 - **既定のモデル**（`.env.example` の例を置き換える）：anthropic は main `claude-opus-5-5`（$4 / $20 / 100 万トークン）、cheap `claude-haiku-5-5`（$0.10 / $0.50）。段 2 では cheap 段は長い会話の分割要約にだけ使う。openai は既定を置かず、未設定なら設定エラーで止める（モデル名の変化が速く、古い既定を配るより明示させる方が安全）。
 - **費用の見込み**：段 0 の見積もり（sidrops＋idr＋grow で main 入力 7 万・出力 1.5 万トークン/日）を Opus 5.5 の単価にすると約 $0.6/日。思考のトークンが出力に加わるので、既定の `LLM_DAILY_BUDGET_USD=1.00` は据え置き、受け入れ基準 3 の実測で見直す。思考の深さは `effort` を明示して固定する（Opus 5.5 は思考を切れず、既定は `medium`）。
 - **要約の対象**：有効な `ietf_mail` ソースの会話のうち、人間のメッセージの新着があるもの。`extra_lists`（`ietf` のような全体リスト）は量が多いので、**件名か本文に追跡中の draft 名・`keywords.include` を含む会話だけ**を対象にする（選別の本体は段 3。ここでは費用を守るための最小の絞り込み）。

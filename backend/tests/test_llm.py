@@ -434,7 +434,7 @@ def _settings(monkeypatch, **env):
 
 def test_factory(monkeypatch, sf):
     s = _settings(monkeypatch)
-    assert s.llm_provider == "none" and s.llm_daily_budget_usd == Decimal("1.00") and s.llm_max_output_tokens == 4000
+    assert s.llm_provider == "none" and s.llm_daily_budget_usd == Decimal("1.00") and s.llm_max_output_tokens == 16000
     assert build_provider(s) is None and llm.build_client(s, sf) is None
     s = _settings(monkeypatch, LLM_PROVIDER="anthropic", LLM_API_KEY=KEY, LLM_MODEL_MAIN="change-me-main-model")
     p = build_provider(s)

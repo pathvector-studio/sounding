@@ -85,7 +85,7 @@ class LLMClient:
         *,
         tz: str,
         daily_budget_usd: Decimal,
-        default_max_tokens: int = 4000,
+        default_max_tokens: int = 16000,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self.provider = provider
