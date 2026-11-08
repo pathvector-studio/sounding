@@ -1,0 +1,13 @@
+FYI, see below.
+
+---------- Forwarded message ---------
+From: Bob Example <bob@example.com>
+Date: Mon, Nov 2, 2026 at 9:15 AM
+Subject: Interesting thread
+To: Carol <carol@example.com>
+
+This is the whole forwarded message.
+It has several paragraphs.
+
+And a signature
+Bob

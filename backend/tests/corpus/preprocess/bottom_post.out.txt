@@ -1,0 +1,2 @@
+[quoted] Should section 3.2 change? I think the old text was ambiguous.
+Yes, I think we should clarify it.

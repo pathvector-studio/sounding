@@ -1,0 +1,5 @@
+One more nit: the IANA section should list the registry.
+
+_______________________________________________
+sidrops mailing list -- sidrops@example.com
+To unsubscribe send an email to sidrops-leave@example.com

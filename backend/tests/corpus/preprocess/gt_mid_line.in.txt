@@ -1,0 +1,3 @@
+The rule is: if a > b then prefer a.
+Compare 5 > 3 and x->y; also "<tag>" and a>b.
+  indented text > not a quote

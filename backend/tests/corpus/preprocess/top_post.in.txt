@@ -1,0 +1,11 @@
+I agree with the proposed change to section 3.2 of draft-example-sidrops-widget-02.
+We should publish it as-is.
+
+Thanks,
+Alice
+
+On Mon, 2 Nov 2026 at 09:15, Bob Example <bob@example.com> wrote:
+> Should section 3.2 change?
+>
+> > The old text was ambiguous.
+> I think so.

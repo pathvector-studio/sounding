@@ -1,0 +1,5 @@
+I agree with the proposed change to section 3.2 of draft-example-sidrops-widget-02.
+We should publish it as-is.
+
+Thanks,
+Alice

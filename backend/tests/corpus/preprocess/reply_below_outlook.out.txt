@@ -1,0 +1,4 @@
+[quoted] Thanks, Bob
+I support adoption, but section 4 needs work.
+
+Also, the examples in the appendix use a reserved ASN, which is fine.

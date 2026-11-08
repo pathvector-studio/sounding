@@ -1,0 +1,12 @@
+See my comments below.
+
+-----Original Message-----
+From: Bob Example <bob@example.com>
+Sent: Monday, November 2, 2026 9:15 AM
+To: wg@example.com
+Subject: draft-example-widget
+
+Does the draft need a new error code?
+> The current text says nothing about it.
+
+Yes, add error code 7.
