@@ -32,7 +32,7 @@ Sounding は、追うべき一次情報が多すぎる専門職（まずネッ�
 | 立ち上げ（調査・命名・設計・雛形・開発の仕組み） | ✅ 完了 | `docs/SURVEY.md`、`docs/DESIGN.md` |
 | 0. スパイク（IETF ML の取得手段、削減率の測定） | ✅ 完了 | `docs/spike-phase0.md`。取得は匿名 IMAP が主 |
 | 1. `SourceAdapter`・取得・DB | ✅ 完了 | `specs/phase1.md`。IETF ML（IMAP）と RSS を worker が定時取得 |
-| 2. LLM 抽象化・前処理・「現在地」の生成と差分更新 | 実装中（4/4） | `specs/phase2.md`（承認済み） |
+| 2. LLM 抽象化・前処理・「現在地」の生成と差分更新 | ✅ 完了 | `specs/phase2.md`。worker が日次で会話の「現在地」を差分更新 |
 | 3〜4 | 未着手 | `docs/DESIGN.md` 9 章 |
 
 ### 4.2 確定済みの設計判断（再検討しない）
