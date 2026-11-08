@@ -150,7 +150,7 @@ def test_scheduler_setup_registers_jobs_without_starting(infra):
     scheduler = build_scheduler(worker, now=now)
     assert isinstance(scheduler, BlockingScheduler) and not scheduler.running
     jobs = {j.id: j for j in scheduler.get_jobs()}
-    assert set(jobs) == {"fetch", "retention"}
+    assert set(jobs) == {"fetch", "retention", "summarize"}
     fetch, retention = jobs["fetch"], jobs["retention"]
     assert isinstance(fetch.trigger, IntervalTrigger) and fetch.trigger.interval == timedelta(minutes=15)
     assert fetch.max_instances == 1 and fetch.coalesce is True

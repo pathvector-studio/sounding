@@ -12,15 +12,17 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Engine, text, update
+from sqlalchemy import Engine, func, select, text, update
 from sqlalchemy.orm import Session
 
 from sounding.ancestors import complete_ancestors, merge_missing
 from sounding.config import Settings
 from sounding.ingest import ingest_items
-from sounding.models import Item, JobRun, Source
+from sounding.llm import LLMClient, build_client
+from sounding.models import Item, JobRun, LlmCall, Source
 from sounding.profile import Profile, load_profile, sync_sources
 from sounding.sources.base import AncestorFetcher, SourceAdapter, SourceError
 
@@ -213,8 +215,141 @@ def run_retention(
     return counts
 
 
+BUDGET_SKIPPED_IDS_CAP = 300
+
+
+@dataclass
+class SummarizeReport:
+    status: str  # ok | failed | skipped
+    reason: str | None = None  # llm_disabled | config_error | all_failed | None
+    counts: dict[str, Any] = field(default_factory=dict)
+    outcomes: list[Any] = field(default_factory=list)  # state.Outcome, in processing order
+    budget_skipped_ids: list[int] = field(default_factory=list)
+
+
+def _record_summarize(
+    session_factory: SessionFactory, started: datetime, status: str, counts: dict[str, Any], error: str | None
+) -> None:
+    with session_factory() as session:
+        session.add(
+            JobRun(
+                job="summarize", started_at=started, finished_at=datetime.now(UTC), status=status,
+                counts=counts or None, error=error,
+            )
+        )
+        session.commit()
+
+
+def run_summarize(
+    session_factory: SessionFactory,
+    settings: Settings,
+    *,
+    client: LLMClient | None = None,
+    profile: Profile | None = None,
+    stop: threading.Event | None = None,
+    only_conversation: int | None = None,
+    now: datetime | None = None,
+) -> SummarizeReport:
+    """Create the next "where it stands" version of every conversation that has new human messages.
+
+    Writes one ``job_runs`` row (job='summarize', source_id NULL):
+    * ``LLM_PROVIDER=none`` -> ``skipped`` / ``llm_disabled``; no provider is built, nothing is sent (R1).
+    * the first ``budget_exceeded`` stops LLM calls for the rest of the run; the conversations left are
+      listed in ``counts.budget_skipped_ids`` (capped at 300; ``budget_skipped`` is the full count) (R8).
+      The run's status stays ``ok``: stopping at the budget is the designed behaviour.
+    * ``config_error`` (missing key/model; it would fail for every conversation) stops the run -> ``failed``.
+    * other failures are counted per code in ``counts.failed`` and the run goes on. The status is ``ok``
+      unless every selected conversation failed (``failed`` / ``all_failed``).
+    * ``stop`` is checked between conversations; the rest is left for the next run (``counts.stopped``).
+    Logs carry conversation ids and statuses only. Error text in the database is a fixed token.
+    """
+    from sounding.state import conversations_to_summarize, summarize_conversation
+
+    started = datetime.now(UTC)
+    client = client if client is not None else build_client(settings, session_factory)
+    if client is None:
+        log.info("summarize skipped: LLM_PROVIDER is none")
+        _record_summarize(session_factory, started, "skipped", {"reason": "llm_disabled"}, "llm_disabled")
+        return SummarizeReport("skipped", "llm_disabled", {"reason": "llm_disabled"})
+
+    profile = profile if profile is not None else load_profile(settings.profile_path)
+    language = profile.profile.language or "en"
+    if only_conversation is not None:
+        ids = [only_conversation]
+    else:
+        with session_factory() as session:
+            ids = conversations_to_summarize(session, profile, language=language)
+
+    outcomes: list[Any] = []
+    failed: dict[str, int] = {}
+    budget_skipped: list[int] = []
+    call_ids: list[int] = []
+    created = updated = rebuilt = no_new = skipped = downgraded = 0
+    stopped = 0
+    config_error = False
+    budget_hit = False
+    for pos, cid in enumerate(ids):
+        if stop is not None and stop.is_set():
+            stopped = len(ids) - pos
+            log.info("stop requested; leaving %d conversation(s) for the next run", stopped)
+            break
+        if budget_hit:
+            budget_skipped.append(cid)
+            continue
+        out = summarize_conversation(session_factory, client, cid, language=language, now=now)
+        outcomes.append(out)
+        call_ids.extend(out.llm_call_ids)
+        downgraded += out.downgraded
+        log.info("summarize conversation %d: %s%s", cid, out.status, f" ({out.code})" if out.code else "")
+        if out.status == "failed":
+            code = out.code or "unknown"
+            if code == "budget_exceeded":
+                budget_hit = True
+                budget_skipped.append(cid)
+                continue
+            failed[code] = failed.get(code, 0) + 1
+            if code == "config_error":
+                config_error = True
+                stopped = len(ids) - pos - 1
+                break
+        elif out.status == "created":
+            created += 1
+        elif out.status == "updated":
+            updated += 1
+        elif out.status == "rebuilt":
+            rebuilt += 1
+        elif out.status == "no_new":
+            no_new += 1
+        else:
+            skipped += 1
+
+    cost = Decimal(0)
+    if call_ids:
+        with session_factory() as session:
+            cost = Decimal(session.scalar(select(func.coalesce(func.sum(LlmCall.cost_usd), 0)).where(LlmCall.id.in_(call_ids))) or 0)
+    n_failed = sum(failed.values())
+    counts: dict[str, Any] = {
+        "selected": len(ids), "created": created, "updated": updated, "rebuilt": rebuilt, "no_new": no_new,
+        "skipped": skipped, "failed": failed, "downgraded": downgraded, "llm_calls": len(call_ids),
+        "cost_usd": f"{cost:.6f}", "budget_skipped": len(budget_skipped),
+    }
+    if budget_skipped:
+        counts["budget_skipped_ids"] = budget_skipped[:BUDGET_SKIPPED_IDS_CAP]
+        counts["budget_skipped_note"] = "not summarized: daily budget exceeded"
+    if stopped:
+        counts["stopped"] = stopped
+    reason: str | None = None
+    status = "ok"
+    if config_error:
+        status, reason = "failed", "config_error"
+    elif n_failed and n_failed == len(ids):
+        status, reason = "failed", "all_failed"
+    _record_summarize(session_factory, started, status, counts, reason)
+    return SummarizeReport(status, reason, counts, outcomes, budget_skipped)
+
+
 # Advisory-lock keys, one per job (fixed so that every worker agrees).
-LOCK_KEYS = {"fetch": 0x534F554E01, "retention": 0x534F554E02}
+LOCK_KEYS = {"fetch": 0x534F554E01, "retention": 0x534F554E02, "summarize": 0x534F554E03}
 
 
 @contextmanager
