@@ -1,5 +1,4 @@
-# Sounding — skeleton only. Nothing is implemented yet; `docker compose up` will fail
-# until backend/ exists. The shape follows biblioflow's conventions (see docs/DESIGN.md §4.3).
+# Sounding — phase 1: the worker fetches IETF lists and RSS into PostgreSQL (docs/DESIGN.md §4.3).
 name: sounding
 
 x-logging: &logging
@@ -9,7 +8,9 @@ x-logging: &logging
     max-file: "5"
 
 x-app-build: &app-build
-  context: ./backend          # TODO: not created yet
+  context: ./backend
+  additional_contexts:
+    repo: .                     # the root VERSION file is copied into the image
   args:
     UID: ${APP_UID:-1000}
     GID: ${APP_GID:-1000}
@@ -52,12 +53,12 @@ services:
     restart: unless-stopped
     logging: *logging
 
-  # Fetch (RSS / IETF lists / Datatracker) → select → summarize (diff) → digest → deliver.
-  # The only container that receives LLM keys and outbound delivery settings.
+  # Fetch (RSS / IETF lists) on a schedule and clear old bodies; later: select → summarize → deliver.
+  # The only container that receives the whole .env (IDENTITY_SECRET, LLM keys, delivery settings).
   sounding-worker:
     <<: *app-common
     container_name: ${SOUNDING_INSTANCE:-sounding}-worker
-    command: ["python", "-m", "sounding.worker"]   # TODO
+    command: ["python", "-m", "sounding.worker"]
     env_file: .env
     environment: *app-env
     volumes:
@@ -66,11 +67,13 @@ services:
       - sounding-internal
       - sounding-egress
 
-  # Read-only UI, minimal API and Atom feed output. Gets no LLM keys.
+  # Read-only UI, minimal API and Atom feed output. Gets no LLM keys and no IDENTITY_SECRET.
+  # The web UI arrives in phase 3, so this service is off by default (`--profile web` to start it).
   sounding-web:
     <<: *app-common
+    profiles: ["web"]
     container_name: ${SOUNDING_INSTANCE:-sounding}-web
-    command: ["python", "-m", "sounding.web"]      # TODO
+    command: ["python", "-m", "sounding.web"]
     environment:
       <<: *app-env
       WEB_PASSWORD_HASH: ${WEB_PASSWORD_HASH:-}

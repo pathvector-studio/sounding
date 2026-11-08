@@ -57,3 +57,9 @@ def test_sources_and_fetch_commands(infra, session, tmp_path, monkeypatch, capsy
         assert "ietf_mail sidrops enabled=yes" in out and "status=ok" in out
     finally:
         get_settings.cache_clear()
+
+
+def test_retention_command(infra, session, capsys):
+    assert main(["retention", "--once"]) == 0
+    assert "retention: {'cleared': 0}" in capsys.readouterr().out
+    assert main(["retention"]) == 2

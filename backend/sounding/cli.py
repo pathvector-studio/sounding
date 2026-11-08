@@ -118,6 +118,19 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     return 1 if any(o.status == "failed" for o in outcomes) else 0
 
 
+def cmd_retention(args: argparse.Namespace) -> int:
+    from sounding.config import get_settings
+    from sounding.db import get_session_factory
+    from sounding.jobs import run_retention
+
+    if not args.once:
+        print("only --once is supported here; the scheduled retention is run by the worker", file=sys.stderr)
+        return 2
+    counts = run_retention(get_session_factory(), get_settings())
+    print(f"retention: {counts}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m sounding")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -128,6 +141,9 @@ def build_parser() -> argparse.ArgumentParser:
     fetch.add_argument("--once", action="store_true", help="fetch once and exit")
     fetch.add_argument("--source", metavar="KEY", help="only this source (list name or feed URL)")
     fetch.set_defaults(func=cmd_fetch)
+    retention = sub.add_parser("retention", help="clear old item bodies (CONTENT_RETENTION_DAYS)")
+    retention.add_argument("--once", action="store_true", help="run once and exit")
+    retention.set_defaults(func=cmd_retention)
     return parser
 
 

@@ -7,17 +7,20 @@ an exception type name, never server output (it could carry secrets or addresses
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import Engine, text, update
 from sqlalchemy.orm import Session
 
 from sounding.ancestors import complete_ancestors, merge_missing
 from sounding.config import Settings
 from sounding.ingest import ingest_items
-from sounding.models import JobRun, Source
+from sounding.models import Item, JobRun, Source
 from sounding.profile import Profile, load_profile, sync_sources
 from sounding.sources.base import AncestorFetcher, SourceAdapter, SourceError
 
@@ -86,11 +89,18 @@ def _fetch_one(
     with session_factory() as session:
         source = session.get(Source, source_id)
         assert source is not None
-        if source.kind == "ietf_mail" and not settings.fetch_contact_is_set:
-            return _finish(
-                session, source, started=started, status="skipped", last_status="skipped",
-                counts={"reason": "fetch_contact_not_set"}, error="fetch_contact_not_set",
+        if source.kind == "ietf_mail":
+            # Without these, mail must not be stored (no contact for IETF; no author_key without the secret).
+            reason = (
+                "fetch_contact_not_set" if not settings.fetch_contact_is_set
+                else "identity_secret_not_set" if not settings.identity_secret_is_set
+                else None
             )
+            if reason:
+                return _finish(
+                    session, source, started=started, status="skipped", last_status="skipped",
+                    counts={"reason": reason}, error=reason,
+                )
         cursor = dict(source.cursor) if source.cursor else None
         try:
             result = adapter.fetch(source, cursor)
@@ -146,8 +156,11 @@ def run_fetch(
     only_source: str | None = None,
     profile: Profile | None = None,
     now: datetime | None = None,
+    stop: threading.Event | None = None,
 ) -> list[SourceOutcome]:
-    """Sync the profile into ``sources``, then fetch each enabled source with a registered adapter."""
+    """Sync the profile into ``sources``, then fetch each enabled source with a registered adapter.
+
+    ``stop`` is checked between sources: once set, the remaining sources are left for the next run."""
     profile = profile if profile is not None else load_profile(settings.profile_path)
     owned = adapters is None
     registry = dict(default_adapters(settings) if adapters is None else adapters)
@@ -162,6 +175,9 @@ def run_fetch(
     outcomes: list[SourceOutcome] = []
     try:
         for source_id, kind in todo:
+            if stop is not None and stop.is_set():
+                log.info("stop requested; leaving %d source(s) for the next run", len(todo) - len(outcomes))
+                break
             outcomes.append(_fetch_one(session_factory, settings, registry[kind], source_id, now or datetime.now(UTC)))
     finally:
         if owned:
@@ -170,3 +186,54 @@ def run_fetch(
                 if callable(close):
                     close()
     return outcomes
+
+
+def run_retention(
+    session_factory: SessionFactory, settings: Settings, now: datetime | None = None
+) -> dict[str, int]:
+    """Clear ``body_text`` of items fetched more than CONTENT_RETENTION_DAYS ago (0 disables).
+
+    Metadata and ``body_hash`` stay. Writes one ``job_runs`` row (job='retention')."""
+    started = datetime.now(UTC)
+    now = now or started
+    days = settings.content_retention_days
+    with session_factory() as session:
+        if days <= 0:
+            counts: dict[str, Any] = {"cleared": 0, "disabled": True}
+        else:
+            cutoff = now - timedelta(days=days)
+            result = session.execute(
+                update(Item).where(Item.body_text.is_not(None), Item.fetched_at < cutoff).values(body_text=None)
+            )
+            counts = {"cleared": result.rowcount}
+        session.add(
+            JobRun(job="retention", started_at=started, finished_at=datetime.now(UTC), status="ok", counts=counts)
+        )
+        session.commit()
+    return counts
+
+
+# Advisory-lock keys, one per job (fixed so that every worker agrees).
+LOCK_KEYS = {"fetch": 0x534F554E01, "retention": 0x534F554E02}
+
+
+@contextmanager
+def advisory_lock(engine: Engine, job: str):
+    """Hold ``pg_try_advisory_lock`` for ``job`` on a dedicated connection; yields whether it was taken."""
+    key = LOCK_KEYS[job]
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        got = bool(conn.execute(text("SELECT pg_try_advisory_lock(:k)"), {"k": key}).scalar())
+        try:
+            yield got
+        finally:
+            if got:
+                conn.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": key})
+
+
+def record_skipped(session_factory: SessionFactory, job: str, reason: str) -> None:
+    now = datetime.now(UTC)
+    with session_factory() as session:
+        session.add(
+            JobRun(job=job, started_at=now, finished_at=now, status="skipped", counts={"reason": reason}, error=reason)
+        )
+        session.commit()
