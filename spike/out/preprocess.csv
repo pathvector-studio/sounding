@@ -1,7 +1,0 @@
-stage,chars,est_tokens,pct_of_raw,pct_of_body_only,pct_of_previous_stage
-1 raw (with headers),1846139,461535,100.0,,
-2 body only,441441,110360,23.9,100.0,23.9
-3 quotes removed,176399,44100,9.6,40.0,40.0
-4 signature removed,174427,43607,9.4,39.5,98.9
-5 footer/Note Well removed,174221,43555,9.4,39.5,99.9
-6 auto mails dropped,157675,39419,8.5,35.7,90.5
