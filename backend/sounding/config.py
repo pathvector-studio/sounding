@@ -10,7 +10,7 @@ from functools import lru_cache
 
 from decimal import Decimal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PLACEHOLDER_PREFIX = "change-me"
@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     database_url: SecretStr
     tz: str = "Asia/Tokyo"
     profile_path: str = "config/profile.yaml"
+    public_base_url: str = "http://localhost:8080"  # links in the digest point here (no trailing slash)
 
     # Fetching
     fetch_interval_minutes: int = 60
@@ -57,6 +58,11 @@ class Settings(BaseSettings):
 
     # Author keys are HMAC(identity_secret, address): changing it changes every key.
     identity_secret: SecretStr = SecretStr("")
+
+    @field_validator("public_base_url")
+    @classmethod
+    def _strip_base_url(cls, value: str) -> str:
+        return value.strip().rstrip("/")
 
     @property
     def fetch_contact_is_set(self) -> bool:

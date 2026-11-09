@@ -86,6 +86,19 @@ docker compose exec sounding-worker python -m sounding show <会話 ID> [--langu
 - **作り直せない場合**：取得した本文は `CONTENT_RETENTION_DAYS`（既定 90 日）を過ぎると消えるため、それより古い会話は状態を作り直せません（保存済みの状態は残ります）。
 - 表示言語は `config/profile.yaml` の `profile.language`（既定 `en`）です。
 
+## ダイジェスト（段 3）
+
+worker は `config/profile.yaml` の `profile.digest.schedule`（cron 形式、`TZ` で解釈。既定 `0 7 * * *`）にダイジェストを 1 つ作り、本文（要約とリンクだけ。メッセージや記事の本文は入らない）をデータベースに残します。期間は「直前の実行時刻から今回の実行時刻まで」（最初の回は 24 時間）です。スケジュールは worker の起動時に読むので、変えたら worker を再起動してください（そのほかのプロファイルは実行のたびに読み直します）。
+
+```bash
+docker compose exec sounding-worker python -m sounding digest --once [--no-deliver]   # 今の期間のダイジェストを作って表示
+docker compose exec sounding-worker python -m sounding show-digest [ID]                # 保存したダイジェストを表示（既定は最新）
+```
+
+- 動きがない日も「動きなし」のダイジェストを作ります（届かないのが故障か静かな日かを区別するため）。LLM が無効、ジョブの失敗、予算超過で要約しなかった会話があるときは、その旨が健康状態の節に出ます。
+- 同じ期間は**その場で作り直します**（ID は同じ、選別と本文を再計算、配信の記録には触れない）。このため、その日の定時より前に手動で `digest --once` を実行すると、前日のダイジェストを作り直します。
+- リンクは `PUBLIC_BASE_URL` を基にします（Web UI は次の PR）。配信（email・webhook）は段 3 の最後の PR で入ります。`--no-deliver` はそのときのための指定で、今は何も送りません。
+
 - `FETCH_CONTACT` は、IETF の匿名 IMAP のパスワードと、RSS 取得時の User-Agent に入ります（IETF の案内どおり）。
 - フィードの URL は指定されたとおりに取得します。記事のページはたどらないので、robots.txt は参照しません。
 

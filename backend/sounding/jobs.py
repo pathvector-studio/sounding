@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from sounding.ancestors import complete_ancestors, merge_missing
 from sounding.config import Settings
 from sounding.ingest import ingest_items
-from sounding.llm import LLMClient, build_client
+from sounding.llm import LLMClient, LLMError, build_client
 from sounding.models import Item, JobRun, LlmCall, Source
 from sounding.profile import Profile, load_profile, sync_sources
 from sounding.sources.base import AncestorFetcher, SourceAdapter, SourceError
@@ -348,8 +348,78 @@ def run_summarize(
     return SummarizeReport(status, reason, counts, outcomes, budget_skipped)
 
 
+@dataclass
+class DigestReport:
+    status: str  # ok | failed
+    reason: str | None = None  # config_error | None
+    digest_id: int | None = None
+    rebuilt: bool = False
+    counts: dict[str, Any] = field(default_factory=dict)
+    body: dict[str, Any] = field(default_factory=dict)
+    language: str = "en"
+    delivery: str | None = None
+
+
+NO_CHANNELS = "no channels implemented yet"
+
+
+def deliver_digest(session_factory: SessionFactory, settings: Settings, digest_id: int) -> str:
+    """Send a built digest to the enabled channels. Phase 3 item 4 fills this in (email, webhook and the
+    ``deliveries`` records); until then it sends nothing and says so."""
+    log.debug("digest %d: delivery skipped: %s", digest_id, NO_CHANNELS)
+    return NO_CHANNELS
+
+
+def run_digest(
+    session_factory: SessionFactory,
+    settings: Settings,
+    *,
+    client: LLMClient | None = None,
+    profile: Profile | None = None,
+    deliver: bool = True,
+    now: datetime | None = None,
+) -> DigestReport:
+    """Build (or rebuild in place) the digest of the current period, then hand it to delivery.
+
+    Writes one ``job_runs`` row (job='digest', source_id NULL) whose counts include ``digest_id``.
+    * ``LLM_PROVIDER=none`` is fine: the digest is built and its health says the LLM is disabled.
+    * ``config_error`` while building the client fails the run (``failed`` / ``config_error``).
+    * any other exception is recorded as ``failed`` (error = the exception type name) and re-raised.
+    """
+    from sounding.digest import build_digest
+
+    started = datetime.now(UTC)
+
+    def record(status: str, counts: dict[str, Any], error: str | None) -> None:
+        with session_factory() as session:
+            session.add(
+                JobRun(job="digest", started_at=started, finished_at=datetime.now(UTC), status=status,
+                       counts=counts or None, error=error)
+            )
+            session.commit()
+
+    profile = profile if profile is not None else load_profile(settings.profile_path)
+    try:
+        client = client if client is not None else build_client(settings, session_factory)
+    except LLMError as exc:
+        code = "config_error" if exc.code == "config_error" else exc.code
+        record("failed", {"reason": code}, code)
+        return DigestReport("failed", code)
+    try:
+        result = build_digest(session_factory, settings, client=client, profile=profile, now=now)
+    except Exception as exc:
+        record("failed", {}, type(exc).__name__)
+        raise
+    delivery = deliver_digest(session_factory, settings, result.digest_id) if deliver else None
+    counts: dict[str, Any] = {"digest_id": result.digest_id, "rebuilt": result.rebuilt, **result.counts}
+    if delivery is not None:
+        counts["delivery"] = delivery
+    record("ok", counts, None)
+    return DigestReport("ok", None, result.digest_id, result.rebuilt, result.counts, result.body, result.language, delivery)
+
+
 # Advisory-lock keys, one per job (fixed so that every worker agrees).
-LOCK_KEYS = {"fetch": 0x534F554E01, "retention": 0x534F554E02, "summarize": 0x534F554E03}
+LOCK_KEYS = {"fetch": 0x534F554E01, "retention": 0x534F554E02, "summarize": 0x534F554E03, "digest": 0x534F554E04}
 
 
 @contextmanager

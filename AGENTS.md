@@ -73,6 +73,8 @@ docker compose exec sounding-worker python -m sounding status
 docker compose exec sounding-worker python -m sounding fetch --once    # 手動で 1 回取得
 docker compose exec sounding-worker python -m sounding summarize --once # 要約（LLM_PROVIDER が none なら skipped）
 docker compose exec sounding-worker python -m sounding show <会話ID>     # 保存した「現在地」を表示
+docker compose exec sounding-worker python -m sounding digest --once --no-deliver  # 今の期間のダイジェストを作る（同じ期間はその場で作り直す）
+docker compose exec sounding-worker python -m sounding show-digest [ID]  # 保存したダイジェストを表示（既定は最新）
 ```
 テスト（実 PostgreSQL。スキップは不可）：
 ```bash

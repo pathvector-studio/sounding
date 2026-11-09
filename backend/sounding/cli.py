@@ -84,7 +84,21 @@ def format_status(session: Session, settings: Settings | None = None) -> str:
     else:
         reason = f" error={last.error}" if last.error else ""
         lines.append(f"last summarize: {last.started_at.isoformat()} {last.status}{reason} counts={last.counts}")
+    lines.append(format_last_digest(session))
     return "\n".join(lines)
+
+
+def format_last_digest(session: Session) -> str:
+    from sounding.models import Digest
+
+    d = session.scalar(select(Digest).order_by(Digest.period_end.desc(), Digest.id.desc()).limit(1))
+    if d is None:
+        return "last digest: (never)"
+    counts = (d.body_json or {}).get("counts", {})
+    return (
+        f"last digest: id={d.id} period={d.period_start.isoformat(timespec='minutes')}..{d.period_end.isoformat(timespec='minutes')} "
+        f"language={d.language} conversations={counts.get('conversations', 0)} items={counts.get('items', 0)}"
+    )
 
 
 def cmd_status(_args: argparse.Namespace) -> int:
@@ -210,6 +224,50 @@ def cmd_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_digest(args: argparse.Namespace) -> int:
+    from sounding.config import get_settings
+    from sounding.db import get_session_factory
+    from sounding.digest import render_digest_text
+    from sounding.jobs import run_digest
+    from sounding.profile import ProfileError
+
+    if not args.once:
+        print("only --once is supported here; the scheduled digest is run by the worker", file=sys.stderr)
+        return 2
+    try:
+        report = run_digest(get_session_factory(), get_settings(), deliver=not args.no_deliver)
+    except ProfileError as exc:
+        print(f"profile error: {exc}", file=sys.stderr)
+        return 1
+    if report.status != "ok":
+        print(f"digest failed: {report.reason}", file=sys.stderr)
+        return 1
+    print(f"digest {report.digest_id} ({'rebuilt' if report.rebuilt else 'created'}) counts={report.counts}")
+    if report.delivery:
+        print(f"delivery: {report.delivery}")
+    print()
+    print(render_digest_text(report.body, report.language))
+    return 0
+
+
+def cmd_show_digest(args: argparse.Namespace) -> int:
+    from sounding.db import session_scope
+    from sounding.digest import render_digest_text
+    from sounding.models import Digest
+
+    with session_scope() as session:
+        q = select(Digest)
+        q = q.where(Digest.id == args.digest_id) if args.digest_id is not None else q.order_by(Digest.period_end.desc(), Digest.id.desc()).limit(1)
+        d = session.scalar(q)
+        if d is None:
+            print("no such digest (run: digest --once)" if args.digest_id is not None else "no digest yet (run: digest --once)")
+            return 0
+        print(f"digest {d.id} language={d.language} created_at={d.created_at.isoformat(timespec='seconds')}")
+        print()
+        print(render_digest_text(d.body_json, d.language))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m sounding")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -231,6 +289,13 @@ def build_parser() -> argparse.ArgumentParser:
     show.add_argument("conversation_id", type=int)
     show.add_argument("--language", metavar="xx", help="state language (default: profile.language)")
     show.set_defaults(func=cmd_show)
+    digest = sub.add_parser("digest", help="build the digest of the current period (rebuilds it in place if it exists)")
+    digest.add_argument("--once", action="store_true", help="run once and exit")
+    digest.add_argument("--no-deliver", action="store_true", help="build only; do not send")
+    digest.set_defaults(func=cmd_digest)
+    show_digest = sub.add_parser("show-digest", help="print a stored digest (default: the latest)")
+    show_digest.add_argument("digest_id", nargs="?", type=int, metavar="ID")
+    show_digest.set_defaults(func=cmd_show_digest)
     return parser
 
 
