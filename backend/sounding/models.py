@@ -11,6 +11,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -205,3 +206,68 @@ Index(
     ConversationState.language,
     ConversationState.version.desc(),
 )
+
+
+class ItemSummary(Base):
+    """A short summary of one (RSS) item per output language. Shared layer: no user column."""
+
+    __tablename__ = "item_summaries"
+    __table_args__ = (UniqueConstraint("item_id", "language"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("items.id"))
+    language: Mapped[str] = mapped_column(Text)
+    summary: Mapped[str] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(Text)
+    llm_call_id: Mapped[int | None] = mapped_column(ForeignKey("llm_calls.id"))
+    created_at: Mapped[datetime] = _ts(server_default=_NOW)
+
+
+# --- The user layer (phase 3). Single user for now: deliberately no user_id column; it is added
+# --- together with multi-user support (specs/phase3.md, out of scope).
+
+
+class Digest(Base):
+    __tablename__ = "digests"
+    __table_args__ = (UniqueConstraint("period_start", "period_end", "language"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    period_start: Mapped[datetime] = _ts()
+    period_end: Mapped[datetime] = _ts()
+    language: Mapped[str] = mapped_column(Text)
+    body_json: Mapped[Any] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = _ts(server_default=_NOW)
+
+
+class Selection(Base):
+    """Why a conversation or item was (not) put into a digest: score, reasons and who decided."""
+
+    __tablename__ = "selections"
+    __table_args__ = (
+        CheckConstraint("target_kind IN ('conversation', 'item')", name="target_kind"),
+        CheckConstraint("decided_by IN ('rule', 'llm')", name="decided_by"),
+        Index("ix_selections_digest_id", "digest_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    digest_id: Mapped[int] = mapped_column(ForeignKey("digests.id"))
+    target_kind: Mapped[str] = mapped_column(Text)  # conversation | item
+    target_id: Mapped[int] = mapped_column(BigInteger)  # no FK: the kind says which table
+    included: Mapped[bool] = mapped_column(Boolean)
+    score: Mapped[float] = mapped_column(Float)
+    reasons_json: Mapped[Any] = mapped_column(JSONB)
+    decided_by: Mapped[str] = mapped_column(Text)  # rule | llm
+    created_at: Mapped[datetime] = _ts(server_default=_NOW)
+
+
+class Delivery(Base):
+    __tablename__ = "deliveries"
+    __table_args__ = (UniqueConstraint("digest_id", "channel"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    digest_id: Mapped[int] = mapped_column(ForeignKey("digests.id"))
+    channel: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text)
+    attempts: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    last_attempt_at: Mapped[datetime | None] = _ts()
+    error: Mapped[str | None] = mapped_column(Text)

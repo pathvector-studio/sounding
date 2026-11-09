@@ -48,7 +48,7 @@ def session(infra):
 
     with get_engine().begin() as conn:
         conn.execute(
-            text("TRUNCATE conversation_states, llm_calls, job_runs, events, items, conversations, sources RESTART IDENTITY CASCADE")
+            text("TRUNCATE selections, deliveries, digests, item_summaries, conversation_states, llm_calls, job_runs, events, items, conversations, sources RESTART IDENTITY CASCADE")
         )
     with get_session_factory()() as s:
         yield s
