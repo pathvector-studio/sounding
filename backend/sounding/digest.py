@@ -295,7 +295,7 @@ _TEXT = {
     "en": {
         "title": "Sounding digest", "health": "Health", "conversations": "Active conversations",
         "events": "Procedural updates", "items": "Related articles", "quiet": "No activity in this period (the digest ran normally).",
-        "new": "{n} new messages", "changed": "Changed since last", "no_state": "(no summary yet)", "latest": "Latest message",
+        "new": "{n} new messages", "new1": "1 new message", "changed": "Changed since last", "no_state": "(no summary yet)", "latest": "Latest message",
         "web": "Details", "participants": "Participants",
         "job_failed": "Job failed: {d}", "budget_skipped": "{d} conversation(s) not summarized: daily LLM budget exceeded",
         "llm_disabled": "LLM is disabled (LLM_PROVIDER=none): no summaries were made",
@@ -330,7 +330,7 @@ def render_digest_text(body: dict[str, Any], language: str) -> str:
     if body.get("conversations"):
         lines += ["", f"[{t['conversations']}]"]
         for c in body["conversations"]:
-            lines += ["", f"* {c['subject']}  ({c['list']}, {t['new'].format(n=c['new_messages'])})"]
+            lines += ["", f"* {c['subject']}  ({c['list']}, {t['new1'] if c['new_messages'] == 1 and 'new1' in t else t['new'].format(n=c['new_messages'])})"]
             st = c.get("state")
             if st:
                 lines.append(f"  {st['status_line']}")

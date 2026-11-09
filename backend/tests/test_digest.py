@@ -267,7 +267,7 @@ def test_render_text_en_and_ja(session, sf):
     en = render_digest_text(body, "en")
     for needle in (
         "Sounding digest", "[Health]", "Job failed: fetch: fetch_failed", "[Active conversations]",
-        "[sidrops] ASPA verification", "WGLC in progress", "Changed since last: Scope was agreed", "1 new messages",
+        "[sidrops] ASPA verification", "WGLC in progress", "Changed since last: Scope was agreed", "1 new message)",
         f"https://digest.example.com/conversations/{a.conversation_id}", "Latest message: https://mailarchive.example.com/",
         "(no summary yet)", "[Procedural updates]", "Last Call draft-ietf-sidrops-aspa-verification-19",
         "[Related articles]", "RPKI deployment report", "Short summary.",
