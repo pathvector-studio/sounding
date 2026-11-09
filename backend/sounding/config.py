@@ -60,6 +60,17 @@ class Settings(BaseSettings):
     llm_daily_budget_usd: Decimal = Decimal("1.00")  # 0 = unlimited
     llm_max_output_tokens: int = 16000
 
+    # Delivery (worker only). The webhook URL is itself the credential. A sending channel that is enabled
+    # but left empty / change-me is a configuration error for that channel only (deliveries.error = not_configured).
+    delivery_channels: str = "web,atom"  # comma-separated subset of web,email,webhook,atom
+    webhook_url: SecretStr = SecretStr("")
+    smtp_host: str = ""
+    smtp_port: int = 587  # 465 = implicit TLS; anything else = STARTTLS (never plaintext)
+    smtp_user: SecretStr = SecretStr("")  # empty = no login
+    smtp_password: SecretStr = SecretStr("")
+    smtp_from: SecretStr = SecretStr("")
+    digest_to: SecretStr = SecretStr("")  # comma-separated recipients
+
     # Author keys are HMAC(identity_secret, address): changing it changes every key.
     identity_secret: SecretStr = SecretStr("")
 
@@ -67,6 +78,11 @@ class Settings(BaseSettings):
     @classmethod
     def _strip_base_url(cls, value: str) -> str:
         return value.strip().rstrip("/")
+
+    @property
+    def enabled_channels(self) -> frozenset[str]:
+        """``delivery_channels`` parsed: lower-cased, trimmed, empty entries dropped."""
+        return frozenset(c.strip().lower() for c in self.delivery_channels.split(",") if c.strip())
 
     @property
     def fetch_contact_is_set(self) -> bool:

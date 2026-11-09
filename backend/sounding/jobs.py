@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from sounding.ancestors import complete_ancestors, merge_missing
 from sounding.config import Settings
+from sounding.deliver import NO_CHANNELS, deliver_digest, retry_failed  # noqa: F401 - re-exported
 from sounding.ingest import ingest_items
 from sounding.llm import LLMClient, LLMError, build_client
 from sounding.models import Item, JobRun, LlmCall, Source
@@ -360,16 +361,6 @@ class DigestReport:
     delivery: str | None = None
 
 
-NO_CHANNELS = "no channels implemented yet"
-
-
-def deliver_digest(session_factory: SessionFactory, settings: Settings, digest_id: int) -> str:
-    """Send a built digest to the enabled channels. Phase 3 item 4 fills this in (email, webhook and the
-    ``deliveries`` records); until then it sends nothing and says so."""
-    log.debug("digest %d: delivery skipped: %s", digest_id, NO_CHANNELS)
-    return NO_CHANNELS
-
-
 def run_digest(
     session_factory: SessionFactory,
     settings: Settings,
@@ -380,6 +371,9 @@ def run_digest(
     now: datetime | None = None,
 ) -> DigestReport:
     """Build (or rebuild in place) the digest of the current period, then hand it to delivery.
+
+    Delivery (``deliver=True``): the enabled sending channels get the digest, then earlier digests whose delivery
+    failed fewer than twice are tried again (``sounding.deliver``). The summary is stored in ``counts.delivery``.
 
     Writes one ``job_runs`` row (job='digest', source_id NULL) whose counts include ``digest_id``.
     * ``LLM_PROVIDER=none`` is fine: the digest is built and its health says the LLM is disabled.
@@ -410,7 +404,17 @@ def run_digest(
     except Exception as exc:
         record("failed", {}, type(exc).__name__)
         raise
-    delivery = deliver_digest(session_factory, settings, result.digest_id) if deliver else None
+    delivery = None
+    if deliver:
+        # A delivery problem never fails the digest job: it is recorded per channel in ``deliveries``.
+        try:
+            delivery = deliver_digest(session_factory, settings, result.digest_id)
+            retried = retry_failed(session_factory, settings, result.digest_id)
+            if retried:
+                delivery += "; retried " + "; ".join(retried)
+        except Exception as exc:  # noqa: BLE001 - type name only
+            log.error("digest %d: delivery step crashed: %s", result.digest_id, type(exc).__name__)
+            delivery = f"error({type(exc).__name__})"
     counts: dict[str, Any] = {"digest_id": result.digest_id, "rebuilt": result.rebuilt, **result.counts}
     if delivery is not None:
         counts["delivery"] = delivery

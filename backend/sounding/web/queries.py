@@ -8,62 +8,24 @@ never leaves this module.
 
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import urlsplit
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from sounding.config import Settings
-from sounding.models import Conversation, ConversationState, Digest, Event, Item, JobRun, Selection, Source
+from sounding.models import Conversation, ConversationState, Delivery, Digest, Event, Item, JobRun, Selection, Source
+from sounding.safe import clean_body, clean_url, mask_deep as _mask  # noqa: F401 - re-exported for the web package
 from sounding.text import mask_addresses
 
 PAGE_SIZE = 30
 RECENT_SELECTION_DIGESTS = 10
 KNOWN_JOBS = ("fetch", "retention", "summarize", "digest")
 
-_CONTROL = re.compile(r"[\x00-\x20\x7f]")
-
-
-def clean_url(url: Any) -> str | None:
-    """The URL if it is an absolute http(s) URL with a host and no whitespace/control characters, else None."""
-    if not isinstance(url, str) or not url or _CONTROL.search(url):
-        return None
-    try:
-        parts = urlsplit(url)
-    except ValueError:
-        return None
-    return url if parts.scheme in ("http", "https") and parts.netloc else None
-
 
 def _iso(dt: datetime | None) -> str | None:
     return None if dt is None else dt.astimezone(UTC).isoformat(timespec="seconds")
-
-
-def _mask(value: Any) -> Any:
-    """Deep copy with every string passed through ``mask_addresses`` (defence in depth; stored text is already masked)."""
-    if isinstance(value, str):
-        return mask_addresses(value)
-    if isinstance(value, list):
-        return [_mask(v) for v in value]
-    if isinstance(value, dict):
-        return {k: _mask(v) for k, v in value.items()}
-    return value
-
-
-def clean_body(body: dict[str, Any]) -> dict[str, Any]:
-    """A digest body with unsafe URLs removed and addresses masked."""
-    out = _mask(body or {})
-    for c in out.get("conversations", []):
-        c["web_url"] = clean_url(c.get("web_url"))
-        c["latest_url"] = clean_url(c.get("latest_url"))
-    for e in out.get("events", []):
-        e["url"] = clean_url(e.get("url"))
-    for i in out.get("items", []):
-        i["url"] = clean_url(i.get("url"))
-    return out
 
 
 # --- digests ------------------------------------------------------------------------------------
@@ -198,8 +160,19 @@ def status_info(session: Session, settings: Settings, atom_url: str) -> dict[str
     budget = settings.llm_daily_budget_usd
     calls = calls_today(session, settings.tz)
     last = session.scalar(select(Digest).where(_built()).order_by(Digest.period_end.desc(), Digest.id.desc()).limit(1))
+    deliveries = []
+    for channel in session.scalars(select(Delivery.channel).distinct().order_by(Delivery.channel)):
+        d = session.scalar(
+            select(Delivery).where(Delivery.channel == channel)
+            .order_by(Delivery.last_attempt_at.desc().nulls_last(), Delivery.id.desc()).limit(1)
+        )
+        deliveries.append({
+            "channel": channel, "status": d.status, "digest_id": d.digest_id, "attempts": d.attempts,
+            "last_attempt_at": _iso(d.last_attempt_at), "error": d.error,  # a fixed token; never the URL or an address
+        })
     return {
         "jobs": jobs,
+        "deliveries": deliveries,
         "sources": sources,
         "llm": {
             "provider": settings.llm_provider, "tz": settings.tz,
