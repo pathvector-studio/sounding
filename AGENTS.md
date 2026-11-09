@@ -75,7 +75,9 @@ docker compose exec sounding-worker python -m sounding summarize --once # 要約
 docker compose exec sounding-worker python -m sounding show <会話ID>     # 保存した「現在地」を表示
 docker compose exec sounding-worker python -m sounding digest --once --no-deliver  # 今の期間のダイジェストを作る（同じ期間はその場で作り直す）
 docker compose exec sounding-worker python -m sounding show-digest [ID]  # 保存したダイジェストを表示（既定は最新）
+docker compose exec sounding-worker python -m sounding hash-password     # WEB_PASSWORD_HASH の値を作る（README「Web UI」）
 ```
+`sounding-web`（Web UI、`http://localhost:${SOUNDING_PORT}`）も `docker compose up` で一緒に起動する（`SESSION_SECRET` は 32 バイト以上必須。`WEB_PASSWORD_HASH` が空ならログインなしで、全ページに警告の帯が出る）。ホストで直接動かすときは `cd backend && uv run python -m sounding.web`（ポート 8080）。
 テスト（実 PostgreSQL。スキップは不可）：
 ```bash
 docker run -d --rm --name sounding-test-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=sounding_test \

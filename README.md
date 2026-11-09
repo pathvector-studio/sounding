@@ -64,7 +64,7 @@ Docker Compose が必要です。
    docker compose exec sounding-worker python -m sounding sources
    ```
 
-worker は起動直後に 1 回取得し、その後は `FETCH_INTERVAL_MINUTES` ごとに取得します。`CONTENT_RETENTION_DAYS` を過ぎた本文は毎日 03:30 に消します（メタデータは残す）。`FETCH_CONTACT` と `IDENTITY_SECRET` のどちらかが未設定のあいだ、IETF のリストは取得されません（RSS は動きます）。Web UI は段 3 で入るため、`sounding-web` は既定では起動しません。
+worker は起動直後に 1 回取得し、その後は `FETCH_INTERVAL_MINUTES` ごとに取得します。`CONTENT_RETENTION_DAYS` を過ぎた本文は毎日 03:30 に消します（メタデータは残す）。`FETCH_CONTACT` と `IDENTITY_SECRET` のどちらかが未設定のあいだ、IETF のリストは取得されません（RSS は動きます）。`sounding-web`（Web UI）も `docker compose up` で一緒に起動します（下の「Web UI（段 3）」）。
 
 ## LLM による要約（段 2）
 
@@ -97,10 +97,33 @@ docker compose exec sounding-worker python -m sounding show-digest [ID]         
 
 - 動きがない日も「動きなし」のダイジェストを作ります（届かないのが故障か静かな日かを区別するため）。LLM が無効、ジョブの失敗、予算超過で要約しなかった会話があるときは、その旨が健康状態の節に出ます。
 - 同じ期間は**その場で作り直します**（ID は同じ、選別と本文を再計算、配信の記録には触れない）。このため、その日の定時より前に手動で `digest --once` を実行すると、前日のダイジェストを作り直します。
-- リンクは `PUBLIC_BASE_URL` を基にします（Web UI は次の PR）。配信（email・webhook）は段 3 の最後の PR で入ります。`--no-deliver` はそのときのための指定で、今は何も送りません。
+- リンクは `PUBLIC_BASE_URL` を基にします（Web UI は下の「Web UI（段 3）」）。配信（email・webhook）は段 3 の最後の PR で入ります。`--no-deliver` はそのときのための指定で、今は何も送りません。
 
 - `FETCH_CONTACT` は、IETF の匿名 IMAP のパスワードと、RSS 取得時の User-Agent に入ります（IETF の案内どおり）。
 - フィードの URL は指定されたとおりに取得します。記事のページはたどらないので、robots.txt は参照しません。
+
+## Web UI（段 3）
+
+`docker compose up -d` で `sounding-web` も起動します。ブラウザで `http://localhost:${SOUNDING_PORT}`（既定 `http://localhost:8080`、127.0.0.1 にだけ公開）を開くと、最新のダイジェスト、ダイジェスト一覧、会話ごとの「議論の現在地」（版の履歴・選ばれた理由つき）、状態ページ（ジョブ・情報源・当日の LLM 費用・Atom フィードの URL）が読めます。読み取り専用で、データベースには何も書きません。画面の言語は `profile.language`（ja / en）に従います。メッセージや記事の本文は表示せず、要約と出典リンクだけです。
+
+**パスワード**：Web UI のログインは `.env` の `WEB_PASSWORD_HASH` で決まります。
+
+```bash
+docker compose exec sounding-worker python -m sounding hash-password     # パスワードを 2 回聞かれ、ハッシュだけを表示する
+# ホストで直接: cd backend && uv run python -m sounding hash-password   （スクリプトからは --stdin で 1 行読む）
+```
+
+表示された `scrypt$...` を `.env` に書き、`docker compose up -d` で web を作り直します。**`$` が compose に解釈されないよう、値全体を単一引用符で囲みます**（`$$` に置き換えても同じです）。
+
+```
+WEB_PASSWORD_HASH='scrypt$32768$8$1$<salt>$<hash>'
+```
+
+- 空のままなら**ログインなし**です。起動時に警告をログに出し、すべてのページの上部に帯を出します。Tailscale や Cloudflare Access のような外側の認証の内側でだけ使ってください（公開の方法は段 4 で選べるようにします）。
+- ログインすると 30 日有効なセッション Cookie（`HttpOnly`、`SameSite=Lax`、`PUBLIC_BASE_URL` が https のとき `Secure`）が発行されます。失敗が 5 回続くと、そのクライアントアドレスからの試行は 429 で待たされます（待ち時間は 2 秒から倍々、最大 15 分。web を再起動すると忘れます）。
+- `SESSION_SECRET` は 32 バイト以上で、`change-me` のままだと web は起動を拒否します（`openssl rand -hex 32`）。
+- `GET /healthz`（`ok` だけ）、`/static/`、Atom フィードはログイン不要で、そのほかのページと `/api/` はログインが必要です。API は読み取り専用の JSON です（`/api/digests`、`/api/digests/latest`、`/api/digests/{id}`、`/api/conversations/{id}`、`/api/status`）。
+- **Atom フィード**：状態ページに URL（`PUBLIC_BASE_URL/feed/<トークン>.atom`）が出ます。トークンは `SESSION_SECRET` から作るので、知っている人は誰でも読めます。公開しないでください。`SESSION_SECRET` を変えると URL も変わります。最新 20 件のダイジェストを要約テキストで載せます。
 
 ## 開発に参加する
 

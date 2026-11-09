@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="{{ t.lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="same-origin">
+<title>{% block title %}{{ t.app }}{% endblock %} - {{ t.app }}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">{{ t.app }}</a>
+  <nav>
+    <a href="/">{{ t.nav_digest }}</a>
+    <a href="/digests">{{ t.nav_digests }}</a>
+    <a href="/status">{{ t.nav_status }}</a>
+    {% if has_login %}
+    <form class="inline" method="post" action="/logout"><button type="submit" class="link">{{ t.logout }}</button></form>
+    {% endif %}
+  </nav>
+</header>
+{% if no_password %}<div class="banner" role="alert">{{ t.banner }}</div>{% endif %}
+<main>
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

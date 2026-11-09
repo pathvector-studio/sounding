@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ t.status_page }}{% endblock %}
+{% block content %}
+<h1>{{ t.status_page }}</h1>
+
+<section>
+  <h2>{{ t.jobs }}</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>{{ t.job }}</th><th>{{ t.last_ok }}</th><th>{{ t.last_failed }}</th><th>{{ t.error }}</th></tr></thead>
+    <tbody>
+    {% for j in info.jobs %}
+      <tr><td>{{ j.job }}</td><td>{{ (j.last_ok_at|dt) or t.never }}</td><td>{{ (j.last_failed_at|dt) or t.none }}</td><td>{{ j.last_error or t.none }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>{{ t.source_list }}</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>{{ t.kind }}</th><th>{{ t.key }}</th><th>{{ t.enabled }}</th><th>{{ t.last_fetch }}</th><th>{{ t.items_n }}</th><th>{{ t.conv_n }}</th><th>{{ t.events_n }}</th></tr></thead>
+    <tbody>
+    {% for s in info.sources %}
+      <tr><td>{{ s.kind }}</td><td class="wrap">{{ s.key }}</td><td>{{ t.yes if s.enabled else t.no }}</td>
+          <td>{{ (s.last_fetched_at|dt) or t.never }} {{ s.last_status or "" }}</td><td>{{ s["items"] }}</td><td>{{ s.conversations }}</td><td>{{ s.events }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>{{ t.llm }}</h2>
+  <p>{{ t.provider }}: {{ info.llm.provider }} &middot; {{ t.spend }}: ${{ info.llm.spend_today_usd }} &middot;
+     {{ t.budget }}: {% if info.llm.budget_usd %}${{ info.llm.budget_usd }}{% else %}{{ t.unlimited }}{% endif %} ({{ info.llm.tz }})</p>
+  <p class="meta">{{ t.calls }}: ok={{ info.llm.calls_today.ok }} failed={{ info.llm.calls_today.failed }} reused={{ info.llm.calls_today.reused }}</p>
+</section>
+
+<section>
+  <h2>{{ t.last_digest }}</h2>
+  {% if info.last_digest %}
+  <p><a href="/digests/{{ info.last_digest.id }}">#{{ info.last_digest.id }}</a> {{ info.last_digest.period_start|dt }} - {{ info.last_digest.period_end|dt }} UTC</p>
+  {% else %}<p class="empty">{{ t.no_digests }}</p>{% endif %}
+</section>
+
+<section>
+  <h2>{{ t.atom }}</h2>
+  <p><code class="wrap">{{ info.atom_url }}</code></p>
+  <p class="meta">{{ t.atom_help }}</p>
+</section>
+{% endblock %}

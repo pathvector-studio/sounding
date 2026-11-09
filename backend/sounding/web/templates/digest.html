@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "macros.html" import link %}
+{% block title %}{{ t.digest }}{% endblock %}
+{% block content %}
+{% if not digest %}
+<h1>{{ t.digest }}</h1>
+<p class="empty">{{ t.no_digest }}</p>
+{% else %}
+{% set b = digest.body %}
+<h1>{{ t.digest }} <span class="meta">#{{ digest.id }}</span></h1>
+<p class="meta">{{ t.period }}: {{ b.period.start|dt }} - {{ b.period.end|dt }} ({{ b.period.tz }}) &middot; {{ t.created }}: {{ digest.created_at|dt }} UTC &middot; <a href="/digests">{{ t.all_digests }}</a></p>
+
+{% if b.health %}
+<section class="health">
+  <h2>{{ t.health }}</h2>
+  <ul>
+  {% for h in b.health %}<li>{{ t.health_msg.get(h.kind, h.kind).format(d=h.detail) }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if b.quiet %}<p class="empty">{{ t.quiet }}</p>{% endif %}
+
+{% if b.conversations %}
+<section>
+  <h2>{{ t.conversations }}</h2>
+  {% for c in b.conversations %}
+  <article class="card">
+    <h3><a href="/conversations/{{ c.id }}">{{ c.subject }}</a></h3>
+    <p class="meta">{{ c.list }} &middot; {{ t.new_messages.format(n=c.new_messages) }}{% if c.participants %} &middot; {{ t.participants }}: {{ c.participants|join(", ") }}{% endif %}</p>
+    {% if c.state %}
+      <p>{{ c.state.status_line }}</p>
+      {% if c.state.changed_since_last %}<p class="changed"><strong>{{ t.changed }}:</strong> {{ c.state.changed_since_last }}</p>{% endif %}
+    {% else %}
+      <p class="meta">{{ t.no_state }}</p>
+    {% endif %}
+    <p class="links">
+      <a href="/conversations/{{ c.id }}">{{ t.details }}</a>
+      {% if c.latest_url %}&middot; {{ link(c.latest_url, t.latest_message) }}{% endif %}
+    </p>
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if b.events %}
+<section>
+  <h2>{{ t.events }}</h2>
+  <ul>
+  {% for e in b.events %}
+    <li>{{ e.label }}{% if e.ref %} <code>{{ e.ref }}</code>{% endif %}: {{ link(e.url, e.title) }} <span class="meta">({{ e.list }}, {{ e.occurred_at|dt }})</span></li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if b["items"] %}
+<section>
+  <h2>{{ t.articles }}</h2>
+  {% for i in b["items"] %}
+  <article class="card">
+    <h3>{{ link(i.url, i.title) }}</h3>
+    <p class="meta">{{ i.feed|replace("https://", "")|replace("http://", "") }}</p>
+    {% if i.summary %}<p>{{ i.summary }}</p>{% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

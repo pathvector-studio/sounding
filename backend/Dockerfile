@@ -31,5 +31,5 @@ COPY --from=repo --chmod=0644 VERSION ./VERSION
 # Pre-compiled: the root filesystem is read-only, so Python cannot write .pyc files at run time.
 RUN python -m compileall -q sounding alembic
 USER app
-# The web entry point arrives in phase 3; `python -m sounding <command>` is the CLI.
+# The default command is the worker; compose runs the web UI with `python -m sounding.web`. `python -m sounding <command>` is the CLI.
 CMD ["python", "-m", "sounding.worker"]

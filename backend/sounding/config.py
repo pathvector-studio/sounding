@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     profile_path: str = "config/profile.yaml"
     public_base_url: str = "http://localhost:8080"  # links in the digest point here (no trailing slash)
 
+    # Web UI (sounding.web; the web container gets these and no other secret)
+    session_secret: SecretStr = SecretStr("")  # signs the login cookie and derives the Atom token; >= 32 bytes
+    web_password_hash: SecretStr = SecretStr("")  # scrypt$n$r$p$salt$hash (hash-password); empty = no login
+
     # Fetching
     fetch_interval_minutes: int = 60
     fetch_contact: SecretStr = SecretStr("")
