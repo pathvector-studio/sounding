@@ -268,6 +268,26 @@ def cmd_show_digest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_hash_password(args: argparse.Namespace) -> int:
+    """Print the ``WEB_PASSWORD_HASH`` value for a password. Nothing but the hash goes to stdout; the password is never logged."""
+    import getpass
+
+    from sounding.web.auth import hash_password
+
+    if args.stdin:
+        password = sys.stdin.readline().rstrip("\r\n")
+    else:
+        password = getpass.getpass("Password: ")
+        if getpass.getpass("Repeat password: ") != password:
+            print("the two passwords differ", file=sys.stderr)
+            return 1
+    if not password:
+        print("the password is empty", file=sys.stderr)
+        return 1
+    print(hash_password(password))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m sounding")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -296,6 +316,9 @@ def build_parser() -> argparse.ArgumentParser:
     show_digest = sub.add_parser("show-digest", help="print a stored digest (default: the latest)")
     show_digest.add_argument("digest_id", nargs="?", type=int, metavar="ID")
     show_digest.set_defaults(func=cmd_show_digest)
+    hp = sub.add_parser("hash-password", help="print the WEB_PASSWORD_HASH value for a password (asks twice)")
+    hp.add_argument("--stdin", action="store_true", help="read the password as one line from stdin (for scripts)")
+    hp.set_defaults(func=cmd_hash_password)
     return parser
 
 

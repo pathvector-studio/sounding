@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "macros.html" import link %}
+{% macro refs(rs) -%}
+{%- if rs %} <span class="refs">[{% for r in rs %}{% if not loop.first %}, {% endif %}{% set src = sources_by_ref.get(r) %}{% if src and src.url %}{{ link(src.url, r) }}{% else %}{{ r }}{% endif %}{% endfor %}]</span>{% endif -%}
+{%- endmacro %}
+{% block title %}{{ c.subject }}{% endblock %}
+{% block content %}
+<h1>{{ c.subject }}</h1>
+<p class="meta">{{ t.mailing_list }}: {{ c.list }} &middot; {{ c.message_count }} {{ t.messages }} &middot; {{ t.first }}: {{ c.first_message_at|dt }} &middot; {{ t.last }}: {{ c.last_message_at|dt }}</p>
+{% if c.merged_into %}<p class="banner-soft">{{ t.merged }} <a href="/conversations/{{ c.merged_into }}">{{ t.merged_link }}</a></p>{% endif %}
+
+{% if not c.state %}
+<p class="empty">{{ t.no_summary }}</p>
+{% else %}
+{% set s = c.state %}
+<section>
+  <p class="status-line">{{ s.status_line }}</p>
+  <p class="meta">{{ t.version }} {{ s.version }} &middot; {{ s.created_at|dt }} UTC &middot; {{ t.model }}: {{ s.model }}</p>
+  {% if s.changed_since_last %}<p class="changed"><strong>{{ t.changed }}:</strong> {{ s.changed_since_last }}</p>{% endif %}
+</section>
+
+{% if s.issues %}
+<section>
+  <h2>{{ t.issues }}</h2>
+  {% for i in s.issues %}
+  <article class="card">
+    <h3><span class="tag tag-{{ i.status }}">{{ t.status_names.get(i.status, i.status) }}</span> {{ i.issue }}{{ refs(i.refs) }}</h3>
+    {% if i.positions %}
+    <ul>
+      {% for p in i.positions %}<li><strong>{{ p.by|join(", ") }}</strong>: {{ p.stance }}{{ refs(p.refs) }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if i.evidence %}<blockquote>{{ i.evidence }}</blockquote>{% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if s.agreed %}
+<section>
+  <h2>{{ t.agreed }}</h2>
+  <ul>{% for a in s.agreed %}<li>{{ a.text }}{{ refs(a.refs) }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if s.open_questions %}
+<section>
+  <h2>{{ t.open_questions }}</h2>
+  <ul>{% for q in s.open_questions %}<li>{{ q }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if s["next"] %}
+<section>
+  <h2>{{ t["next"] }}</h2>
+  <ul>{% for n in s["next"] %}<li>{{ n }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if s.sources %}
+<section>
+  <h2>{{ t.sources }}</h2>
+  <ul class="sources">
+  {% for x in s.sources %}
+    <li><code>{{ x.ref }}</code> {{ x.date|dt }} {{ x.author_name or t.none }} {% if x.url|safe_url %}{{ link(x.url, t.open_source) }}{% endif %}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endif %}
+
+{% if c.versions %}
+<section>
+  <h2>{{ t.history }}</h2>
+  <ul>
+  {% for v in c.versions %}
+    <li>{{ t.version }} {{ v.version }} <span class="meta">{{ v.created_at|dt }} UTC, {{ v.model }}</span>{% if v.changed_since_last %}<br>{{ v.changed_since_last }}{% endif %}</li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if c.selections %}
+<section>
+  <h2>{{ t.selection }}</h2>
+  <ul>
+  {% for x in c.selections %}
+    <li>
+      <a href="/digests/{{ x.digest_id }}">#{{ x.digest_id }}</a> {{ x.period_end|dt }} UTC:
+      {{ t.included if x.included else t.excluded }}, {{ t.score }} {{ "%.1f"|format(x.score) }}, {{ t.decided_by }} {{ x.decided_by }}
+      <span class="meta">
+        {% for k, v in x.reasons.items() %}{% if v is not mapping and v is not sequence or v is string %}{{ k }}={{ v }} {% endif %}{% endfor %}
+        {% if x.reasons.components %}({% for k, v in x.reasons.components.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}){% endif %}
+      </span>
+    </li>
+  {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,4 +1,4 @@
-# Sounding — phase 1: the worker fetches IETF lists and RSS into PostgreSQL (docs/DESIGN.md §4.3).
+# Sounding — worker (fetch, summarize, digest) and web UI on PostgreSQL (docs/DESIGN.md §4.3).
 name: sounding
 
 x-logging: &logging
@@ -67,11 +67,10 @@ services:
       - sounding-internal
       - sounding-egress
 
-  # Read-only UI, minimal API and Atom feed output. Gets no LLM keys and no IDENTITY_SECRET.
-  # The web UI arrives in phase 3, so this service is off by default (`--profile web` to start it).
+  # Read-only UI, JSON API and Atom feed (phase 3). It reads the database and writes nothing.
+  # Gets no env_file: only the values below, so no LLM key, IDENTITY_SECRET or delivery secret ever reaches it.
   sounding-web:
     <<: *app-common
-    profiles: ["web"]
     container_name: ${SOUNDING_INSTANCE:-sounding}-web
     command: ["python", "-m", "sounding.web"]
     environment:
@@ -79,11 +78,22 @@ services:
       WEB_PASSWORD_HASH: ${WEB_PASSWORD_HASH:-}
       SESSION_SECRET: ${SESSION_SECRET:?}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      PROFILE_PATH: ${PROFILE_PATH:-config/profile.yaml}   # UI labels follow profile.language
+      LLM_PROVIDER: ${LLM_PROVIDER:-none}                    # shown on the status page
+      LLM_DAILY_BUDGET_USD: ${LLM_DAILY_BUDGET_USD:-1.00}
+    volumes:
+      - ./config:/app/config:ro                     # profile.yaml
     ports:
       - "127.0.0.1:${SOUNDING_PORT:-8080}:8080"
     networks:
       - sounding-internal
       - sounding-edge
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 volumes:
   db-data:

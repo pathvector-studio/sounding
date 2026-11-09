@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ t.nav_digests }}{% endblock %}
+{% block content %}
+<h1>{{ t.nav_digests }}</h1>
+{% if not digests %}
+<p class="empty">{{ t.no_digests }}</p>
+{% else %}
+<ul class="list">
+{% for d in digests %}
+  <li>
+    <a href="/digests/{{ d.id }}">{{ d.period_start|dt }} - {{ d.period_end|dt }}</a>
+    <span class="meta">
+      {% if d.quiet %}{{ t.quiet }}{% else %}{{ t.conversations }}: {{ d.counts.get("conversations", 0) }} / {{ t.articles }}: {{ d.counts.get("items", 0) }}{% endif %}
+    </span>
+  </li>
+{% endfor %}
+</ul>
+<p class="pager">
+  {% if page > 1 %}<a href="/digests?page={{ page - 1 }}">{{ t.prev }}</a>{% endif %}
+  {% if has_more %}<a href="/digests?page={{ page + 1 }}">{{ t.next_page }}</a>{% endif %}
+</p>
+{% endif %}
+{% endblock %}
