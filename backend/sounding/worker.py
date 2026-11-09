@@ -1,7 +1,11 @@
 """The worker: ``python -m sounding.worker``.
 
 Runs migrations, then a blocking APScheduler loop (``fetch`` every FETCH_INTERVAL_MINUTES and once at
-start, ``retention`` daily at 03:30, ``summarize`` daily at 06:00 and only when LLM_PROVIDER is set). Each run takes a PostgreSQL advisory lock so that a second worker
+start, ``retention`` daily at 03:30, ``summarize`` daily at 06:00 and ``digest`` on
+``profile.digest.schedule``). The digest schedule is read from the profile when the worker starts, so a
+changed schedule needs a worker restart (the rest of the profile is re-read at every run). If the profile
+is invalid at start, or the schedule is not a valid cron string, the digest job is not registered and the
+worker keeps running. Each run takes a PostgreSQL advisory lock so that a second worker
 never runs the same job at the same time. SIGTERM / SIGINT stop scheduling and let a running fetch
 finish its current source.
 """
@@ -21,8 +25,10 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from sounding.config import Settings
-from sounding.jobs import SessionFactory, advisory_lock, record_skipped, run_fetch, run_retention, run_summarize
-from sounding.profile import ProfileError
+from sounding.jobs import (
+    SessionFactory, advisory_lock, record_skipped, run_digest, run_fetch, run_retention, run_summarize,
+)
+from sounding.profile import Profile, ProfileError, load_profile
 
 log = logging.getLogger("sounding.worker")
 
@@ -45,8 +51,11 @@ def startup_summary(settings: Settings) -> dict[str, object]:
 
 
 class Worker:
-    def __init__(self, settings: Settings, session_factory: SessionFactory, engine) -> None:
+    def __init__(
+        self, settings: Settings, session_factory: SessionFactory, engine, profile: Profile | None = None
+    ) -> None:
         self.settings = settings
+        self.profile = profile  # loaded at start; only its digest schedule is used (None: no digest job)
         self.session_factory = session_factory
         self.engine = engine
         self.stop = threading.Event()
@@ -95,6 +104,13 @@ class Worker:
 
         self._run_locked("summarize", go)
 
+    def digest_job(self) -> None:
+        def go() -> None:
+            report = run_digest(self.session_factory, self.settings)
+            log.info("digest finished: %s id=%s %s", report.status, report.digest_id, report.reason or "")
+
+        self._run_locked("digest", go)
+
     def wait_idle(self) -> None:
         with self._cond:
             self._cond.wait_for(lambda: self._active == 0)
@@ -122,7 +138,25 @@ def build_scheduler(
         CronTrigger(hour=SUMMARIZE_HOUR, minute=SUMMARIZE_MINUTE, timezone=tz),
         id="summarize", name="summarize", max_instances=1, coalesce=True,
     )
+    if worker.profile is not None:
+        try:
+            trigger = CronTrigger.from_crontab(worker.profile.profile.digest.schedule, timezone=tz)
+        except ValueError:
+            log.error("digest job not registered: profile.digest.schedule is not a valid cron string")
+        else:
+            scheduler.add_job(
+                worker.digest_job, trigger, id="digest", name="digest", max_instances=1, coalesce=True,
+            )
     return scheduler
+
+
+def load_start_profile(settings: Settings) -> Profile | None:
+    """The profile at worker start, or None (logged) when it is invalid: the worker must not crash."""
+    try:
+        return load_profile(settings.profile_path)
+    except ProfileError as exc:
+        log.error("profile error: %s; the digest job is not registered", exc)
+        return None
 
 
 def main() -> int:
@@ -139,7 +173,7 @@ def main() -> int:
         log.warning("IDENTITY_SECRET is not set: IETF lists will be skipped")
     run_migrations()
 
-    worker = Worker(settings, get_session_factory(), get_engine())
+    worker = Worker(settings, get_session_factory(), get_engine(), load_start_profile(settings))
     scheduler = build_scheduler(worker)
 
     def on_signal(signum: int, _frame) -> None:

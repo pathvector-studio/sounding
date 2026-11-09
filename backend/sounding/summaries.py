@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 PURPOSE_SELECT = "rss_select"
 PURPOSE_SUMMARY = "rss_summary"
-SELECT_PROMPT_VERSION = "rss-select-v1"
+SELECT_PROMPT_VERSION = "rss-select-v2"
 SUMMARY_PROMPT_VERSION = "rss-summary-v1"
 
 JUDGE_BODY_CHARS = 1_500
@@ -66,7 +66,12 @@ SYSTEM_JUDGE = (
     "outside knowledge about the source and do not guess what the rest of the article says.\n\n"
     + _SECURITY
     + "\nOUTPUT\n"
-    "- fits: true only if the article is clearly relevant to what the reader follows; when in doubt, false.\n"
+    "- fits: true if the article is substantially about the technical subject matter the reader follows: the "
+    "protocols, mechanisms and operational practice that those working groups and drafts deal with, or one of "
+    "the interest keywords. The article does not need to mention the IETF, a working group or a draft by name; "
+    "use what you know about what each working group works on. false for articles only loosely connected "
+    "(general Internet news, events, organisational announcements) unless they are mainly about that subject "
+    "matter; when in doubt, false.\n"
     "- reason: one short sentence (in the output language named in the task line) saying why."
 )
 
