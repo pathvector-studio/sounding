@@ -29,6 +29,20 @@
 </section>
 
 <section>
+  <h2>{{ t.deliveries }}</h2>
+  {% if info.deliveries %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>{{ t.channel }}</th><th>{{ t.state }}</th><th>{{ t.last_attempt }}</th><th>{{ t.attempts }}</th><th>{{ t.error }}</th></tr></thead>
+    <tbody>
+    {% for d in info.deliveries %}
+      <tr><td>{{ d.channel }}</td><td>{{ d.status }} (<a href="/digests/{{ d.digest_id }}">#{{ d.digest_id }}</a>)</td><td>{{ (d.last_attempt_at|dt) or t.never }}</td><td>{{ d.attempts }}</td><td>{{ d.error or t.none }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="empty">{{ t.no_deliveries }}</p>{% endif %}
+</section>
+
+<section>
   <h2>{{ t.llm }}</h2>
   <p>{{ t.provider }}: {{ info.llm.provider }} &middot; {{ t.spend }}: ${{ info.llm.spend_today_usd }} &middot;
      {{ t.budget }}: {% if info.llm.budget_usd %}${{ info.llm.budget_usd }}{% else %}{{ t.unlimited }}{% endif %} ({{ info.llm.tz }})</p>

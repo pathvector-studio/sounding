@@ -85,6 +85,7 @@ def format_status(session: Session, settings: Settings | None = None) -> str:
         reason = f" error={last.error}" if last.error else ""
         lines.append(f"last summarize: {last.started_at.isoformat()} {last.status}{reason} counts={last.counts}")
     lines.append(format_last_digest(session))
+    lines += format_delivery_status(session, settings)
     return "\n".join(lines)
 
 
@@ -99,6 +100,28 @@ def format_last_digest(session: Session) -> str:
         f"last digest: id={d.id} period={d.period_start.isoformat(timespec='minutes')}..{d.period_end.isoformat(timespec='minutes')} "
         f"language={d.language} conversations={counts.get('conversations', 0)} items={counts.get('items', 0)}"
     )
+
+
+def format_delivery_status(session: Session, settings: Settings) -> list[str]:
+    """One line per enabled channel: the last delivery status. Never prints the webhook URL or an address."""
+    from sounding.models import Delivery
+
+    lines = []
+    for channel in sorted(settings.enabled_channels):
+        if channel in ("web", "atom"):
+            lines.append(f"delivery {channel}: in the database (nothing to send)")
+            continue
+        d = session.scalar(
+            select(Delivery).where(Delivery.channel == channel)
+            .order_by(Delivery.last_attempt_at.desc().nulls_last(), Delivery.id.desc()).limit(1)
+        )
+        if d is None:
+            lines.append(f"delivery {channel}: (never)")
+            continue
+        when = d.last_attempt_at.isoformat(timespec="minutes") if d.last_attempt_at else "-"
+        err = f" error={d.error}" if d.error else ""
+        lines.append(f"delivery {channel}: {d.status} digest={d.digest_id} attempts={d.attempts} at={when}{err}")
+    return lines
 
 
 def cmd_status(_args: argparse.Namespace) -> int:
@@ -250,6 +273,27 @@ def cmd_digest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_deliver(args: argparse.Namespace) -> int:
+    """Resend one digest by hand. Ignores the attempts limit of the automatic retry; skips ``sent`` channels unless --force."""
+    from sounding.config import get_settings
+    from sounding.db import get_session_factory, session_scope
+    from sounding.deliver import SEND_CHANNELS, deliver_digest
+    from sounding.models import Digest
+
+    settings = get_settings()
+    with session_scope() as session:
+        if session.get(Digest, args.digest) is None:
+            print(f"no such digest: {args.digest}", file=sys.stderr)
+            return 1
+    wanted = {args.channel} if args.channel else set(SEND_CHANNELS)
+    if args.channel and args.channel not in settings.enabled_channels:
+        print(f"channel {args.channel} is not enabled in DELIVERY_CHANNELS", file=sys.stderr)
+        return 1
+    summary = deliver_digest(get_session_factory(), settings, args.digest, channels=wanted, force=args.force, honor_limit=False)
+    print(f"delivery: {summary}")
+    return 1 if "failed(" in summary or "digest_not_found" in summary else 0
+
+
 def cmd_show_digest(args: argparse.Namespace) -> int:
     from sounding.db import session_scope
     from sounding.digest import render_digest_text
@@ -313,6 +357,11 @@ def build_parser() -> argparse.ArgumentParser:
     digest.add_argument("--once", action="store_true", help="run once and exit")
     digest.add_argument("--no-deliver", action="store_true", help="build only; do not send")
     digest.set_defaults(func=cmd_digest)
+    deliver = sub.add_parser("deliver", help="send one stored digest again (email / webhook) by hand")
+    deliver.add_argument("--digest", type=int, required=True, metavar="ID")
+    deliver.add_argument("--channel", choices=["email", "webhook"], help="only this channel (default: every enabled one)")
+    deliver.add_argument("--force", action="store_true", help="also resend a channel that was already sent")
+    deliver.set_defaults(func=cmd_deliver)
     show_digest = sub.add_parser("show-digest", help="print a stored digest (default: the latest)")
     show_digest.add_argument("digest_id", nargs="?", type=int, metavar="ID")
     show_digest.set_defaults(func=cmd_show_digest)

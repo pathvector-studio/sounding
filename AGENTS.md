@@ -33,7 +33,8 @@ Sounding は、追うべき一次情報が多すぎる専門職（まずネッ�
 | 0. スパイク（IETF ML の取得手段、削減率の測定） | ✅ 完了 | `docs/spike-phase0.md`。取得は匿名 IMAP が主 |
 | 1. `SourceAdapter`・取得・DB | ✅ 完了 | `specs/phase1.md`。IETF ML（IMAP）と RSS を worker が定時取得 |
 | 2. LLM 抽象化・前処理・「現在地」の生成と差分更新 | ✅ 完了 | `specs/phase2.md`。worker が日次で会話の「現在地」を差分更新 |
-| 3〜4 | 未着手 | `docs/DESIGN.md` 9 章 |
+| 3. 選別・ダイジェスト・Web UI・配信 | 実装中（4/4） | `specs/phase3.md`（承認済み） |
+| 4 | 未着手 | `docs/DESIGN.md` 9 章 |
 
 ### 4.2 確定済みの設計判断（再検討しない）
 - 名前は **Sounding**（2026-11-07）。リポジトリ `pathvector-studio/sounding`、サイト `sounding.pathvector.dev`、コンテナ接頭辞 `sounding-`。
@@ -73,6 +74,7 @@ docker compose exec sounding-worker python -m sounding status
 docker compose exec sounding-worker python -m sounding fetch --once    # 手動で 1 回取得
 docker compose exec sounding-worker python -m sounding summarize --once # 要約（LLM_PROVIDER が none なら skipped）
 docker compose exec sounding-worker python -m sounding show <会話ID>     # 保存した「現在地」を表示
+docker compose exec sounding-worker python -m sounding deliver --digest <ID> [--channel email|webhook] [--force]  # ダイジェストを手動で再送（送信済みは --force でだけ）
 docker compose exec sounding-worker python -m sounding digest --once --no-deliver  # 今の期間のダイジェストを作る（同じ期間はその場で作り直す）
 docker compose exec sounding-worker python -m sounding show-digest [ID]  # 保存したダイジェストを表示（既定は最新）
 docker compose exec sounding-worker python -m sounding hash-password     # WEB_PASSWORD_HASH の値を作る（README「Web UI」）

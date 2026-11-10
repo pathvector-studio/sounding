@@ -179,6 +179,25 @@ def test_pages_and_api_render(seeded, tmp_path):
         assert needle in st.text, needle
 
 
+def test_status_page_and_api_show_deliveries_without_secrets(seeded, session, tmp_path):
+    from sounding.models import Delivery
+
+    c = client(tmp_path, login=True)
+    assert "Nothing has been sent yet" in c.get("/status").text and c.get("/api/status").json()["deliveries"] == []
+    session.add_all([
+        Delivery(digest_id=seeded["digest"], channel="webhook", status="failed", attempts=2, last_attempt_at=NOW, error="http_404"),
+        Delivery(digest_id=seeded["digest"], channel="email", status="sent", attempts=1, last_attempt_at=NOW - timedelta(hours=1)),
+    ])
+    session.commit()
+    page = c.get("/status").text
+    for needle in ("Deliveries", "webhook", "email", "failed", "sent", "http_404"):
+        assert needle in page, needle
+    api = {d["channel"]: d for d in c.get("/api/status").json()["deliveries"]}
+    assert api["webhook"]["error"] == "http_404" and api["webhook"]["status"] == "failed" and api["webhook"]["attempts"] == 2
+    assert api["email"]["error"] is None and api["email"]["last_attempt_at"]
+    assert set(api["webhook"]) == {"channel", "status", "digest_id", "attempts", "last_attempt_at", "error"}
+
+
 def test_api_json_shapes(seeded, tmp_path):
     c = client(tmp_path, login=True)
     lst = c.get("/api/digests").json()

@@ -42,7 +42,7 @@
 
 ## 開発状況
 
-**段 2（会話ごとの「議論の現在地」の生成）まで実装済み**。IETF メーリングリスト（匿名 IMAP）と RSS/Atom を PostgreSQL に取り込み、IETF の会話（スレッド）ごとに「何が争点か・合意はどこまでか・何が未決着か・前回から何が動いたか」を LLM で要約して版ごとに保存します（新着があった会話だけを前回の状態からの差分で更新）。保存した現在地は `show` で読めます。選別・ダイジェスト・配信・Web UI はまだありません（段 3）。RSS 項目の要約も段 3 です。
+**段 3（選別・ダイジェスト・Web UI・配信）まで実装済み**。IETF メーリングリスト（匿名 IMAP）と RSS/Atom を PostgreSQL に取り込み、IETF の会話（スレッド）ごとに「何が争点か・合意はどこまでか・何が未決着か・前回から何が動いたか」を LLM で要約して版ごとに保存します（新着があった会話だけを前回の状態からの差分で更新）。毎日、興味プロファイルで会話と RSS 記事を選んでダイジェストにまとめ、Web UI・Atom フィード・メール・webhook（Discord / Slack）で届けます。1 コマンドのインストール、公開モードの手順、バックアップは段 4 です。
 
 | ドキュメント | 内容 |
 |---|---|
@@ -97,14 +97,32 @@ docker compose exec sounding-worker python -m sounding show-digest [ID]         
 
 - 動きがない日も「動きなし」のダイジェストを作ります（届かないのが故障か静かな日かを区別するため）。LLM が無効、ジョブの失敗、予算超過で要約しなかった会話があるときは、その旨が健康状態の節に出ます。
 - 同じ期間は**その場で作り直します**（ID は同じ、選別と本文を再計算、配信の記録には触れない）。このため、その日の定時より前に手動で `digest --once` を実行すると、前日のダイジェストを作り直します。
-- リンクは `PUBLIC_BASE_URL` を基にします（Web UI は下の「Web UI（段 3）」）。配信（email・webhook）は段 3 の最後の PR で入ります。`--no-deliver` はそのときのための指定で、今は何も送りません。
+- リンクは `PUBLIC_BASE_URL` を基にします（Web UI は下の「Web UI（段 3）」）。作ったダイジェストの送り方は下の「配信（段 3）」です。`--no-deliver` を付けると作るだけで何も送りません。
 
 - `FETCH_CONTACT` は、IETF の匿名 IMAP のパスワードと、RSS 取得時の User-Agent に入ります（IETF の案内どおり）。
 - フィードの URL は指定されたとおりに取得します。記事のページはたどらないので、robots.txt は参照しません。
 
+## 配信（段 3）
+
+`.env` の `DELIVERY_CHANNELS`（カンマ区切り、既定 `web,atom`）で、ダイジェストを作った直後に worker が送るチャネルを選びます。`web`（Web UI）と `atom`（フィード）は DB に入っていれば読めるので送る処理はありません。`email` と `webhook` を足し、下の値を `.env` に書いて `docker compose up -d` で worker を作り直します。
+
+**送るもの**：要約（件名、「現在地」の 1 行、前回からの変化）、手続きの更新、関連記事の要約、出典リンク、Web UI のダイジェストへのリンクだけです。メッセージや記事の本文は送りません。動きがない日の「動きなし」のダイジェストも送ります。
+
+- **webhook（Discord / Slack）**：チャネルの設定で Incoming Webhook を作り、その URL を `WEBHOOK_URL` に書きます（Discord は「連携サービス」→「ウェブフック」、Slack は Incoming Webhooks アプリ）。URL 自体が資格情報なので、誰にも見せず、`.env` の外（git）に置かないでください。ホストが `discord.com` なら `content`、`hooks.slack.com` なら `text`、それ以外（互換サーバー）は両方を含む JSON を送ります。Discord の上限（2000 文字）に収まるよう、見出し・健康状態・会話ごとの件名と「現在地」の 1 行とリンク・件数・ダイジェストへのリンクの順にまとめ、入りきらない会話は「... +n / m」に省きます（リンクは必ず最後に残る）。リダイレクトは辿らず、2xx 以外は失敗です。
+- **email（SMTP）**：`SMTP_HOST`、`SMTP_PORT`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM`、`DIGEST_TO`（カンマ区切りで複数可）を書きます。ポート **587** は STARTTLS、**465** は最初から TLS です。サーバーが STARTTLS を出さないときは `starttls_unavailable` で失敗し、無暗号には戻りません（サーバー証明書は検証します）。`SMTP_USER` を空にするとログインしません。本文はプレーンテキストと HTML の両方です。
+- 有効にしたのに値が空や `change-me` のままのチャネルは、そのチャネルだけ `not_configured` で失敗として記録されます（ダイジェストの作成は止まりません）。
+- **記録と再送**：チャネルごとに成否、試行回数、最後の試行、短いエラー（`http_404`、`timeout`、`connect_error`、`smtp_auth_failed` など。URL・アドレス・サーバーの応答は入れない）を `deliveries` に残します。状態ページと `python -m sounding status` で見えます。送れたチャネルには二度送りません（同じ期間の作り直しでも）。失敗したチャネルは**次のダイジェストの実行で 1 回だけ**再送します（最初と合わせて 2 回まで。再送の対象は 3 日以内の期間のダイジェストだけ）。同じ日に手動で `digest --once` を続けて実行すると、その分も試行に数えます。
+- **手動の再送**：`deliver` は 1 つのダイジェストを送り直します。試行回数の上限は無視しますが、送れたチャネルは `--force` を付けない限り飛ばします。
+
+```bash
+docker compose exec sounding-worker python -m sounding deliver --digest <ID> [--channel email|webhook] [--force]
+```
+
+- 秘密（webhook の URL、SMTP のユーザー・パスワード、宛先のアドレス）はログ・`job_runs`・`deliveries`・CLI の出力に出しません。web のコンテナには渡しません。
+
 ## Web UI（段 3）
 
-`docker compose up -d` で `sounding-web` も起動します。ブラウザで `http://localhost:${SOUNDING_PORT}`（既定 `http://localhost:8080`、127.0.0.1 にだけ公開）を開くと、最新のダイジェスト、ダイジェスト一覧、会話ごとの「議論の現在地」（版の履歴・選ばれた理由つき）、状態ページ（ジョブ・情報源・当日の LLM 費用・Atom フィードの URL）が読めます。読み取り専用で、データベースには何も書きません。画面の言語は `profile.language`（ja / en）に従います。メッセージや記事の本文は表示せず、要約と出典リンクだけです。
+`docker compose up -d` で `sounding-web` も起動します。ブラウザで `http://localhost:${SOUNDING_PORT}`（既定 `http://localhost:8080`、127.0.0.1 にだけ公開）を開くと、最新のダイジェスト、ダイジェスト一覧、会話ごとの「議論の現在地」（版の履歴・選ばれた理由つき）、状態ページ（ジョブ・情報源・配信・当日の LLM 費用・Atom フィードの URL）が読めます。読み取り専用で、データベースには何も書きません。画面の言語は `profile.language`（ja / en）に従います。メッセージや記事の本文は表示せず、要約と出典リンクだけです。
 
 **パスワード**：Web UI のログインは `.env` の `WEB_PASSWORD_HASH` で決まります。
 
