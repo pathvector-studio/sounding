@@ -159,7 +159,57 @@ def load_start_profile(settings: Settings) -> Profile | None:
         return None
 
 
+WEB_ROLE = "sounding_web"
+
+
+def set_web_role_password(engine, settings: Settings) -> bool:
+    """Set the password of the web's read-only role from WEB_DB_PASSWORD (idempotent; the value is never logged).
+
+    ALTER ROLE cannot take a bound parameter, so the password is quoted as a literal by psycopg.
+    Returns False (with a warning) when WEB_DB_PASSWORD is empty or a change-me placeholder."""
+    if not settings.web_db_password_is_set:
+        log.warning("WEB_DB_PASSWORD is not set: the web UI's database role has no usable password and sounding-web cannot connect")
+        return False
+    from psycopg import sql
+
+    password = settings.web_db_password.get_secret_value()
+    with engine.connect() as conn:
+        raw = conn.connection.driver_connection  # psycopg connection: Literal needs it for correct quoting
+        stmt = sql.SQL("ALTER ROLE {role} PASSWORD {pw}").format(
+            role=sql.Identifier(WEB_ROLE), pw=sql.Literal(password)
+        ).as_string(raw)
+        raw.execute(stmt)  # no parameters, so a "%" in the password is not read as a placeholder
+        raw.commit()
+    log.info("password of the %s database role set", WEB_ROLE)
+    return True
+
+
+def web_role_ready(settings: Settings) -> bool:
+    """Container healthcheck: can the web's role log in and read? (Only after migrations and the password.)"""
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import make_url
+
+    if not settings.web_db_password_is_set:
+        return False
+    url = make_url(settings.database_url.get_secret_value()).set(
+        username=WEB_ROLE, password=settings.web_db_password.get_secret_value()
+    )
+    engine = create_engine(url)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1 FROM sources LIMIT 1"))
+        return True
+    except Exception:  # noqa: BLE001 - any failure means "not ready yet"
+        return False
+    finally:
+        engine.dispose()
+
+
 def main() -> int:
+    if "--healthcheck" in sys.argv[1:]:
+        from sounding.config import get_settings
+
+        return 0 if web_role_ready(get_settings()) else 1
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     from sounding.cli import run_migrations
     from sounding.config import get_settings
@@ -172,6 +222,7 @@ def main() -> int:
     if not settings.identity_secret_is_set:
         log.warning("IDENTITY_SECRET is not set: IETF lists will be skipped")
     run_migrations()
+    set_web_role_password(get_engine(), settings)
 
     worker = Worker(settings, get_session_factory(), get_engine(), load_start_profile(settings))
     scheduler = build_scheduler(worker)

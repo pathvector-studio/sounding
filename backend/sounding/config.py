@@ -31,9 +31,14 @@ class Settings(BaseSettings):
     profile_path: str = "config/profile.yaml"
     public_base_url: str = "http://localhost:8080"  # links in the digest point here (no trailing slash)
 
+    # Web UI's read-only database role (phase 4): the worker sets this as the password of ``sounding_web``
+    # at every start. Optional for the worker (empty / change-me: the role gets no usable password).
+    web_db_password: SecretStr = SecretStr("")
+
     # Web UI (sounding.web; the web container gets these and no other secret)
     session_secret: SecretStr = SecretStr("")  # signs the login cookie and derives the Atom token; >= 32 bytes
     web_password_hash: SecretStr = SecretStr("")  # scrypt$n$r$p$salt$hash (hash-password); empty = no login
+    bind_address: str = "127.0.0.1"  # host address compose publishes the port on; non-loopback requires a password
 
     # Fetching
     fetch_interval_minutes: int = 60
@@ -83,6 +88,10 @@ class Settings(BaseSettings):
     def enabled_channels(self) -> frozenset[str]:
         """``delivery_channels`` parsed: lower-cased, trimmed, empty entries dropped."""
         return frozenset(c.strip().lower() for c in self.delivery_channels.split(",") if c.strip())
+
+    @property
+    def web_db_password_is_set(self) -> bool:
+        return is_set(self.web_db_password.get_secret_value())
 
     @property
     def fetch_contact_is_set(self) -> bool:

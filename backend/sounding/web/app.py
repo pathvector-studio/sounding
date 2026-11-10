@@ -81,6 +81,7 @@ def create_app(
     secret = settings.session_secret.get_secret_value()
     pw_hash = settings.web_password_hash.get_secret_value().strip()
     auth.validate_web_config(secret, pw_hash)
+    auth.validate_bind(settings.bind_address, pw_hash)
     if session_factory is None:
         from sounding.db import get_session_factory
 
