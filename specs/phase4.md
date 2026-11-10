@@ -11,7 +11,7 @@
 - [ ] R1: **install.sh**（リポジトリ直下）。`curl -sSL https://sounding.pathvector.dev/install.sh | bash` で次を行う。
   - Docker・Compose v2・git があり、Docker のデーモンに届くかを確かめ、足りなければ直し方を出して止まる。
   - 最新のリリースタグ（`vX.Y.Z`、プレリリースは除く。なければ `main`）を clone する。既存の checkout があれば、手元の変更がない場合だけ更新する。
-  - `.env` がなければ `.env.example` から作り、`POSTGRES_PASSWORD`・`SESSION_SECRET`・`IDENTITY_SECRET` を生成値で置き換え、権限を 600 にする。`.env` があれば触らない。
+  - `.env` がなければ `.env.example` から作り、`POSTGRES_PASSWORD`・`WEB_DB_PASSWORD`・`SESSION_SECRET`・`IDENTITY_SECRET` を生成値で置き換え、権限を 600 にする。`.env` があれば触らない。
   - `config/profile.yaml` がなければ `config/profile.example.yaml` からコピーする。
   - 端末があれば（`curl | bash` でも `/dev/tty` から）次を聞く。端末がなければ聞かずに既定値で進む。
     - 取得時の連絡先（`FETCH_CONTACT`）。空なら IETF の取得は止まったまま（RSS は動く）で、そのことを表示する。
@@ -31,7 +31,7 @@
   - `scripts/restore.sh --check <snapshot>`：使い捨ての DB に復元して行数を `MANIFEST` と比べる。本番のデータには触らない。
   - `scripts/restore.sh --yes <snapshot>`：今の状態をバックアップしてから、worker と web を止めて本番の DB を置き換え、また起動する。
   - README に cron での日次バックアップと週次の `--check` の例を書く。
-- [ ] R4: **web の DB ロールを読み取り専用にする**（段 3 の「決めたこと」で段 4 に回した件）。web は SELECT しかできないロールで接続し、書き込みの SQL を DB が拒む。ロールの作成とパスワードは migration と compose で自動にし、利用者の手順は増やさない。
+- [ ] R4: **web の DB ロールを読み取り専用にする**（段 3 の「決めたこと」で段 4 に回した件）。web は SELECT しかできないロールで接続し、書き込みの SQL を DB が拒む。ロールは migration で作り、パスワードは新しい秘密 `WEB_DB_PASSWORD` から worker が設定する（「決めたこと」）。
 - [ ] R5: **紹介サイト**（`site/`、HTML/CSS のみ、ビルドなし）。
   - トップページに、何をするものか（議論の現在地を届ける）、**名前の由来**（測深＝位置を確かめる、sound out＝意見・合意を探る）、インストールの 1 行、送られるもの（要約と出典リンクだけ、LLM は自分のキー、既定は何も外に送らない）、GitHub へのリンク。
   - `install.sh` はリポジトリ直下を正とし、デプロイのときに `site/` にコピーする（`site/` 側を直接編集しない）。
@@ -62,7 +62,7 @@
 - **LLM のキーを聞くのはインストール時だけ**。後から変えるときは `.env` を編集して `docker compose up -d`。キーは `read -s` で読み、画面・ログ・シェルの履歴に出さない。
 - **既定は何も外に送らない**ままにする。端末がない実行では LLM は `none`、`FETCH_CONTACT` は空のまま（IETF の取得は止まる）。RSS の取得だけは既定で動く（`profile.example.yaml` のフィード）。
 - **バックアップは DB だけ**。Sounding にはファイルの置き場（biblioflow の PDF のような）がないので、`rsync` も要らない。`config/profile.yaml` は小さいので snapshot に一緒にコピーする。
-- **web の読み取り専用ロール**：migration でロールを作り、パスワードは `POSTGRES_PASSWORD` から導く（HMAC）。新しい秘密を利用者に増やさないため。既存の DB にも migration で入る。
+- **web の読み取り専用ロール**：migration で SELECT だけを許すロール `sounding_web` を作り、worker が起動のたびに `WEB_DB_PASSWORD` をそのロールのパスワードに設定する。web には `POSTGRES_PASSWORD` を渡さず、このロールの接続先だけを渡す。当初は `POSTGRES_PASSWORD` から導く案だったが、それでは web が所有者のパスワードを持つことになり意味がないので、新しい秘密を 1 つ足す。install.sh が生成するので、新しく入れる人の手順は増えない。既存の環境は `.env` に `WEB_DB_PASSWORD` を足す（CHANGELOG と README に書く）。
 - **LAN でログインなしは不可**：`BIND_ADDRESS` が `127.0.0.1` 以外で `WEB_PASSWORD_HASH` が空なら、web は起動しない。段 3 の決定事項 2 (a)（空ならログインなし）は、127.0.0.1 と Tailscale・Access の内側だけで成り立つ前提だったため。
 - **ログインの試行回数の制限**は、Tailscale や Cloudflare の経由ではクライアントのアドレスが見えず全員で 1 つの数になる（段 3 のまま。安全側）。転送ヘッダーは信頼しない。
 - **サイトは 2 ページ（日・英）の静的 HTML**。フォントは system-ui、外部のスクリプトなし、アクセス解析なし。
