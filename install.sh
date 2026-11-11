@@ -280,10 +280,13 @@ main() {
     die "Port ${port} is already in use. Set SOUNDING_PORT and PUBLIC_BASE_URL in ${dir}/.env to another port (or delete .env and rerun with SOUNDING_PORT=<free port>), then retry."
   fi
   info "Building and starting Sounding (the first build takes a few minutes)"
-  # Without build attestations the image id is the same when nothing changed, so a re-run (or an update that changes
-  # nothing) does not recreate the running containers.
+  # sounding-worker and sounding-web are the same image (sounding-app:local). Build it once, without build
+  # attestations, so the image id stays the same when nothing changed and a re-run does not recreate the running
+  # containers (building it once per service would retag it twice).
   export BUILDX_NO_DEFAULT_ATTESTATIONS=1
-  docker compose up -d --build --wait --wait-timeout 300 \
+  docker compose build sounding-worker \
+    || die "The image build failed. See the output above."
+  docker compose up -d --no-build --wait --wait-timeout 300 \
     || die "Some services did not become healthy. See: cd ${dir} && docker compose ps && docker compose logs"
 
   printf '\n%s📡 Sounding is running:%s http://localhost:%s\n\n' "$GRN$BOLD" "$RST" "$port"
