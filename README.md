@@ -42,7 +42,7 @@
 
 ## 開発状況
 
-**段 3（選別・ダイジェスト・Web UI・配信）まで実装済み**。IETF メーリングリスト（匿名 IMAP）と RSS/Atom を PostgreSQL に取り込み、IETF の会話（スレッド）ごとに「何が争点か・合意はどこまでか・何が未決着か・前回から何が動いたか」を LLM で要約して版ごとに保存します（新着があった会話だけを前回の状態からの差分で更新）。毎日、興味プロファイルで会話と RSS 記事を選んでダイジェストにまとめ、Web UI・Atom フィード・メール・webhook（Discord / Slack）で届けます。1 コマンドのインストール、公開モードの手順、バックアップは段 4 です。
+**段 4（インストール・公開モード・バックアップ）まで、紹介サイトを除いて実装済み**。IETF メーリングリスト（匿名 IMAP）と RSS/Atom を PostgreSQL に取り込み、IETF の会話（スレッド）ごとに「何が争点か・合意はどこまでか・何が未決着か・前回から何が動いたか」を LLM で要約して版ごとに保存します（新着があった会話だけを前回の状態からの差分で更新）。毎日、興味プロファイルで会話と RSS 記事を選んでダイジェストにまとめ、Web UI・Atom フィード・メール・webhook（Discord / Slack）で届けます。`install.sh` による 1 コマンドのインストール、公開モード（LAN・Tailscale・Cloudflare Tunnel）、バックアップと復元が入っています。残りは紹介サイトです。
 
 | ドキュメント | 内容 |
 |---|---|
@@ -53,18 +53,64 @@
 
 ## 起動手順
 
-Docker Compose が必要です。
+Docker（Compose v2 つき）と git が必要です。
 
-1. `.env.example` を `.env` にコピーし、`POSTGRES_PASSWORD`、`FETCH_CONTACT`（連絡先のメールアドレス）、`IDENTITY_SECRET`（`openssl rand -hex 32` で生成。最初の起動のあとは変えない）を設定する
+```bash
+curl -sSL https://sounding.pathvector.dev/install.sh | bash
+```
+
+`install.sh` は `~/sounding`（`SOUNDING_DIR` で変更）に最新のリリースタグを clone し、次を行って起動します。途中までしか落ちてこなかったときに半端に実行されないよう、スクリプト全体を関数で包んであります。
+
+- **`.env` を作る**（なければ。あれば触らない）：`.env.example` から作り、権限を 600 にして、`POSTGRES_PASSWORD`・`WEB_DB_PASSWORD`・`SESSION_SECRET`・`IDENTITY_SECRET` を生成値で置き換えます。`SOUNDING_PORT`（既定 8080）と `PUBLIC_BASE_URL` も書きます。Linux では `APP_UID`/`APP_GID` を実行した利用者に合わせます（1000 未満なら変えません）。
+- **端末があれば（`curl | bash` でも）2 つだけ聞く**：
+  - 取得時の連絡先（`FETCH_CONTACT`）：IETF が自動取得に求める連絡先で、匿名 IMAP のパスワードと User-Agent として IETF に送られます（ダイジェストの宛先ではありません）。空にすると IETF の取得は止まったままです（RSS は動きます）。
+  - LLM のプロバイダ（`none` / `anthropic` / `openai`、既定 `none`）：選ぶと、件名・前処理した本文（アドレスは伏せる）・表示名がそのプロバイダへ送られます。費用は自分のキーにかかります（上限は `LLM_DAILY_BUDGET_USD`）。キーは画面に表示しない入力で読み、`.env` にだけ書きます（環境変数では受け取りません）。`openai` ではモデル名も聞きます。
+- **`config/profile.yaml` を作る**（なければ `config/profile.example.yaml` のコピー）。追いたいリスト・フィードは何も聞かないので、あとで編集して `docker compose restart sounding-worker` します。
+- **`docker compose up -d --build --wait` で起動**し、Web UI の URL と次の一歩（プロファイルの編集、ログインのパスワード、公開モード）を出します。ほかの場所で同じ compose プロジェクトが動いている、またはポートが使用中なら、何も起動せずに直し方を出して止まります。
+
+端末がなければ何も聞かず、`FETCH_CONTACT` は空、LLM は `none` で進みます。質問の答えは環境変数で渡せます（キーを除く）。
+
+| 環境変数 | 意味 |
+|---|---|
+| `SOUNDING_DIR` | インストール先（既定 `~/sounding`） |
+| `SOUNDING_REPO` / `SOUNDING_REF` | clone 元 / ブランチかタグ（既定は最新の `vX.Y.Z`、なければ `main`） |
+| `SOUNDING_PORT` | Web UI のポート（既定 8080。`.env` を作るときだけ） |
+| `SOUNDING_INSTANCE` | 2 つ目を動かすときの名前（下の節。`.env` を作るときだけ） |
+| `SOUNDING_NO_START=1` | ファイルを用意するだけで起動しない |
+| `SOUNDING_FETCH_CONTACT` / `SOUNDING_LLM_PROVIDER` | 質問の答え（`SOUNDING_NONINTERACTIVE=1` で端末があっても聞かない） |
+
+動作は次で確かめます。
+
+```bash
+cd ~/sounding
+docker compose exec sounding-worker python -m sounding status
+docker compose exec sounding-worker python -m sounding sources
+```
+
+worker は起動直後に 1 回取得し、その後は `FETCH_INTERVAL_MINUTES` ごとに取得します。`CONTENT_RETENTION_DAYS` を過ぎた本文は毎日 03:30 に消します（メタデータは残す）。`FETCH_CONTACT` と `IDENTITY_SECRET` のどちらかが未設定のあいだ、IETF のリストは取得されません（RSS は動きます）。`sounding-web`（Web UI）も一緒に起動します（下の「Web UI（段 3）」）。
+
+### 手で入れる
+
+`install.sh` を使わないときは、clone したディレクトリで次を行います。
+
+1. `cp .env.example .env` し、`chmod 600 .env`。`POSTGRES_PASSWORD`・`WEB_DB_PASSWORD`・`SESSION_SECRET`・`IDENTITY_SECRET` をそれぞれ `openssl rand -hex 32` の出力に置き換える（`IDENTITY_SECRET` は最初の起動のあとは変えない）。`FETCH_CONTACT` に連絡先のメールアドレスを書く
 2. `cp config/profile.example.yaml config/profile.yaml` し、追いたい WG・リスト・フィードを書く
 3. `docker compose up -d --build`
-4. 動作を確認する
-   ```bash
-   docker compose exec sounding-worker python -m sounding status
-   docker compose exec sounding-worker python -m sounding sources
-   ```
 
-worker は起動直後に 1 回取得し、その後は `FETCH_INTERVAL_MINUTES` ごとに取得します。`CONTENT_RETENTION_DAYS` を過ぎた本文は毎日 03:30 に消します（メタデータは残す）。`FETCH_CONTACT` と `IDENTITY_SECRET` のどちらかが未設定のあいだ、IETF のリストは取得されません（RSS は動きます）。`sounding-web`（Web UI）も `docker compose up` で一緒に起動します（下の「Web UI（段 3）」）。
+### 更新
+
+`install.sh` をもう一度実行します（`curl -sSL https://sounding.pathvector.dev/install.sh | bash`、または `~/sounding/install.sh`）。最新のリリースタグに checkout を進めてイメージを作り直します。手元の変更があれば何もせず止まり、`.env` と `config/profile.yaml` には触りません。更新の前に `scripts/backup.sh` でバックアップを取ってください（「バックアップと復元」）。DB の migration は前へ進むだけで、戻せません。戻したいときはバックアップから復元します。リリースごとに `.env` へ足す値があれば、[CHANGELOG.md](CHANGELOG.md) の Upgrade notes に書きます。
+
+### 同じマシンで 2 つ目を動かす
+
+コンテナ名は `SOUNDING_INSTANCE`、compose のプロジェクト名（ボリュームの名前もこれで決まる）は `COMPOSE_PROJECT_NAME` で決まります。別のディレクトリに入れ、どちらも別の名前にし、ポートも変えます。
+
+```bash
+SOUNDING_DIR=~/sounding-2 SOUNDING_INSTANCE=sounding-2 SOUNDING_PORT=8081 \
+  bash -c "$(curl -sSL https://sounding.pathvector.dev/install.sh)"
+```
+
+これは `.env` に `SOUNDING_INSTANCE=sounding-2`、`COMPOSE_PROJECT_NAME=sounding-2`、`SOUNDING_PORT=8081`、`PUBLIC_BASE_URL=http://localhost:8081` を書きます。手で入れるときも同じ 4 つを `.env` に書きます。名前を変えないと、1 つ目と同じ compose プロジェクトになり、`up` が 1 つ目のコンテナを置き換えてしまうので、`install.sh` は止まります。
 
 ## LLM による要約（段 2）
 
