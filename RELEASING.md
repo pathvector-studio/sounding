@@ -25,19 +25,22 @@ The public interface is what other people's setups depend on: `.env` keys, `conf
 - `VERSION` matches the tag.
 - Changes to `site/` or `install.sh` are approved by the maintainer (they publish to the live site).
 
-## Site (Cloudflare Pages)
+## Site (Cloudflare Workers)
 
-The introduction site is the static `site/` (Japanese at `/`, English at `/en/`, no build step). `install.sh` is not stored there: the repo-root `install.sh` is the source of truth and is copied in at deploy time (`site/install.sh` is git-ignored).
+The introduction site is the static `site/` (Japanese at `/`, English at `/en/`, no build step), served as a Cloudflare Worker with static assets ([`wrangler.toml`](wrangler.toml)), the same way as the other pathvector sites. Pushing to `main` deploys it through Workers Builds.
 
-Cloudflare Pages project settings:
+- `install.sh` is not on the site. `site/_redirects` sends `/install.sh` (302) to the `install.sh` attached to the latest GitHub Release, so users get the released installer, never an unreleased one from `main`. Until the first Release exists, `/install.sh` is a 404 there.
+- `site/_headers` sets the security headers.
+- Preview locally: `npx wrangler dev` (http://localhost:8787).
 
-- Connect the GitHub repository `pathvector-studio/sounding`; production branch `main`.
-- Build command: `cp install.sh site/install.sh`. Output directory: `site`.
-- Build watch paths: include only `site/**` and `install.sh`, so app changes do not redeploy the site.
-- Custom domain: `sounding.pathvector.dev`.
-- `site/_headers` sets the security headers and serves `/install.sh` as `text/plain`.
+Workers Builds settings (Cloudflare dashboard, done once by the maintainer):
 
-Merging a PR that changes `site/` or `install.sh` is a production publish. It needs the maintainer's approval every time.
+- Workers & Pages → Create → Import a repository → `pathvector-studio/sounding`; production branch `main`; root directory `/`.
+- Build command: `python3 scripts/check-private-info.py` (a failing check stops the deploy). Deploy command: `npx wrangler deploy`.
+- Build watch paths: include `site/*` and `wrangler.toml`, so app changes do not redeploy the site.
+- The custom domain `sounding.pathvector.dev` comes from `routes` in `wrangler.toml` (wrangler creates the DNS record and certificate on the first deploy).
+
+Merging a PR that changes `site/`, `wrangler.toml` or `install.sh` is a production publish. It needs the maintainer's approval every time.
 
 ## If a secret or personal detail was published
 

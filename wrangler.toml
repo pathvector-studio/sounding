@@ -1,0 +1,13 @@
+# The introduction site (site/), deployed as a Worker with static assets, like the other pathvector sites.
+# Pushing to main deploys it through Workers Builds (RELEASING.md "Site"). By hand: npx wrangler deploy
+# (needs `npx wrangler login` once). No Worker script and no secrets: only the files in site/.
+name = "sounding"
+compatibility_date = "2026-10-01"
+
+# Custom domain: wrangler creates the DNS record and certificate on deploy.
+routes = [
+  { pattern = "sounding.pathvector.dev", custom_domain = true },
+]
+
+[assets]
+directory = "./site"
