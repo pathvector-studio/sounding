@@ -111,8 +111,69 @@ services:
       retries: 3
       start_period: 20s
 
+  # Optional (deployment mode B, README 「公開のしかた」): open the UI on your tailnet over HTTPS.
+  #   docker compose --profile tailscale up -d
+  # Userspace networking (no NET_ADMIN, no tun), outbound only, no Funnel. Serves https://<TS_HOSTNAME>.<tailnet>.ts.net
+  # -> http://sounding-web:8080. TS_AUTHKEY is only needed on the first start (state is kept in tailscale-state).
+  # Not "${TS_AUTHKEY:?}": compose interpolates every service, so a required variable would break plain `up`.
+  # Runs as root inside the container (containerboot writes its state volume and socket); all capabilities dropped.
+  # On sounding-edge only, no env_file: it never sees the database, the LLM key or any other secret.
+  sounding-tailscale:
+    image: tailscale/tailscale:v1.104.2
+    container_name: ${SOUNDING_INSTANCE:-sounding}-tailscale
+    profiles: ["tailscale"]
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_HOSTNAME: ${TS_HOSTNAME:-sounding}
+      TS_USERSPACE: "true"
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./deploy/tailscale-serve.json:/config/serve.json:ro
+    networks:
+      - sounding-edge
+    depends_on:
+      sounding-web:
+        condition: service_healthy
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    logging: *logging
+
+  # Optional (deployment mode C): publish through a Cloudflare Tunnel. Put Cloudflare Access in front first (README).
+  #   docker compose --profile cloudflare up -d
+  # Public hostname service in the dashboard: http://sounding-web:8080. Outbound only; on sounding-edge only, no env_file.
+  sounding-cloudflared:
+    image: cloudflare/cloudflared:2026.10.5
+    container_name: ${SOUNDING_INSTANCE:-sounding}-cloudflared
+    profiles: ["cloudflare"]
+    command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]
+    environment:
+      # Not ":?" for the same reason as TS_AUTHKEY above; the container exits at once when it is empty.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    networks:
+      - sounding-edge
+    depends_on:
+      sounding-web:
+        condition: service_healthy
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "--metrics", "127.0.0.1:2000", "ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    logging: *logging
+
 volumes:
   db-data:
+  tailscale-state:
 
 networks:
   sounding-internal:
