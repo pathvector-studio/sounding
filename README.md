@@ -137,6 +137,10 @@ docker compose exec sounding-worker python -m sounding hash-password     # パ�
 WEB_PASSWORD_HASH='scrypt$32768$8$1$<salt>$<hash>'
 ```
 
+**読み取り専用の DB ロール**：web は所有者ではなく、SELECT しかできないロール `sounding_web` で PostgreSQL に繋ぎます（書き込みの SQL は DB が拒みます）。そのパスワードは `.env` の `WEB_DB_PASSWORD` です。`openssl rand -hex 32` で生成して書くと、worker が起動のたびにロールのパスワードに設定し、web は worker が healthy になってから起動します。web には `POSTGRES_PASSWORD` を渡しません。**既存の環境は、更新前に `.env` に `WEB_DB_PASSWORD` を足してください**（空のままだと `docker compose up -d` が止まります）。
+
+**公開するアドレス**：`BIND_ADDRESS`（既定 `127.0.0.1` = このマシンだけ）を `0.0.0.0` にすると LAN の別の端末から `http://192.168.1.10:8080` のように開けます。LAN に開くときは `WEB_PASSWORD_HASH` が必須で、空のままだと web は起動しません。
+
 - 空のままなら**ログインなし**です。起動時に警告をログに出し、すべてのページの上部に帯を出します。Tailscale や Cloudflare Access のような外側の認証の内側でだけ使ってください（公開の方法は段 4 で選べるようにします）。
 - ログインすると 30 日有効なセッション Cookie（`HttpOnly`、`SameSite=Lax`、`PUBLIC_BASE_URL` が https のとき `Secure`）が発行されます。失敗が 5 回続くと、そのクライアントアドレスからの試行は 429 で待たされます（待ち時間は 2 秒から倍々、最大 15 分。web を再起動すると忘れます）。
 - `SESSION_SECRET` は 32 バイト以上で、`change-me` のままだと web は起動を拒否します（`openssl rand -hex 32`）。

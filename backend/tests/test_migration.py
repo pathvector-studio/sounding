@@ -14,7 +14,7 @@ def test_upgrade_on_empty_database(infra):
     _reset_schema_and_migrate()  # drops the schema, then runs `alembic upgrade head`
     with get_engine().connect() as conn:
         assert TABLES <= set(inspect(conn).get_table_names())
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0003"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0004"
 
 
 def test_migration_matches_models(infra):

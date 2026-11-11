@@ -16,7 +16,6 @@ x-app-build: &app-build
     GID: ${APP_GID:-1000}
 
 x-app-env: &app-env
-  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@sounding-db:5432/${POSTGRES_DB:?}
   TZ: ${TZ:-Asia/Tokyo}
 
 x-app-common: &app-common
@@ -60,21 +59,38 @@ services:
     container_name: ${SOUNDING_INSTANCE:-sounding}-worker
     command: ["python", "-m", "sounding.worker"]
     env_file: .env
-    environment: *app-env
+    environment:
+      <<: *app-env
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@sounding-db:5432/${POSTGRES_DB:?}
     volumes:
       - ./config:/app/config:ro                     # profile.yaml
     networks:
       - sounding-internal
       - sounding-egress
+    # Healthy once the migrations ran and the worker has set the web role's password (web waits for this).
+    healthcheck:
+      test: ["CMD", "python", "-m", "sounding.worker", "--healthcheck"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
 
   # Read-only UI, JSON API and Atom feed (phase 3). It reads the database and writes nothing.
   # Gets no env_file: only the values below, so no LLM key, IDENTITY_SECRET or delivery secret ever reaches it.
+  # It connects as the read-only database role sounding_web (WEB_DB_PASSWORD), never as the owner.
   sounding-web:
     <<: *app-common
     container_name: ${SOUNDING_INSTANCE:-sounding}-web
     command: ["python", "-m", "sounding.web"]
+    depends_on:
+      sounding-db:
+        condition: service_healthy
+      sounding-worker:
+        condition: service_healthy   # migrations done and the sounding_web password set
     environment:
       <<: *app-env
+      DATABASE_URL: postgresql+psycopg://sounding_web:${WEB_DB_PASSWORD:?set WEB_DB_PASSWORD in .env (openssl rand -hex 32)}@sounding-db:5432/${POSTGRES_DB:?}
+      BIND_ADDRESS: ${BIND_ADDRESS:-127.0.0.1}
       WEB_PASSWORD_HASH: ${WEB_PASSWORD_HASH:-}
       SESSION_SECRET: ${SESSION_SECRET:?}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
@@ -84,7 +100,7 @@ services:
     volumes:
       - ./config:/app/config:ro                     # profile.yaml
     ports:
-      - "127.0.0.1:${SOUNDING_PORT:-8080}:8080"
+      - "${BIND_ADDRESS:-127.0.0.1}:${SOUNDING_PORT:-8080}:8080"
     networks:
       - sounding-internal
       - sounding-edge

@@ -181,3 +181,16 @@ class LoginThrottle:
 
     def success(self, key: str) -> None:
         self._fails.pop(key, None)
+
+
+LOOPBACK_ADDRESSES = frozenset({"127.0.0.1", "::1", "[::1]", "localhost"})
+
+
+def validate_bind(bind_address: str, password_hash: str) -> None:
+    """Raise ``WebConfigError`` when the port is published beyond this machine and there is no login."""
+    addr = (bind_address or "").strip().lower()
+    if addr and addr not in LOOPBACK_ADDRESSES and not password_hash:
+        raise WebConfigError(
+            f"BIND_ADDRESS={bind_address.strip()} opens the web UI beyond this machine but WEB_PASSWORD_HASH is empty: "
+            "set WEB_PASSWORD_HASH (python -m sounding hash-password) or bind to 127.0.0.1"
+        )
