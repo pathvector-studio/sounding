@@ -29,9 +29,9 @@ main() {
   local ref="${SOUNDING_REF:-}"
 
   if [ -t 1 ]; then
-    BOLD=$'\033[1m'; DIM=$'\033[2m'; RED=$'\033[31m'; GRN=$'\033[32m'; YLW=$'\033[33m'; RST=$'\033[0m'
+    BOLD=$'\033[1m'; RED=$'\033[31m'; GRN=$'\033[32m'; YLW=$'\033[33m'; RST=$'\033[0m'
   else
-    BOLD=''; DIM=''; RED=''; GRN=''; YLW=''; RST=''
+    BOLD=''; RED=''; GRN=''; YLW=''; RST=''
   fi
   info() { printf '%s==>%s %s\n' "$BOLD" "$RST" "$*"; }
   ok()   { printf '%s ✓%s %s\n' "$GRN" "$RST" "$*"; }

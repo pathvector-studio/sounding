@@ -73,6 +73,8 @@ ok "snapshot written: $dest"
 
 # Retention: delete all but the newest BACKUP_KEEP snapshots.
 n=0
+# Snapshot names are UTC timestamps (no spaces), so a plain ls is safe here.
+# shellcheck disable=SC2012
 for d in $(ls -1d "$BACKUP_DIR"/2*Z 2>/dev/null | sort -r); do
   n=$((n + 1))
   if [ "$n" -gt "$BACKUP_KEEP" ]; then
