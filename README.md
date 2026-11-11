@@ -147,6 +147,37 @@ WEB_PASSWORD_HASH='scrypt$32768$8$1$<salt>$<hash>'
 - `GET /healthz`（`ok` だけ）、`/static/`、Atom フィードはログイン不要で、そのほかのページと `/api/` はログインが必要です。API は読み取り専用の JSON です（`/api/digests`、`/api/digests/latest`、`/api/digests/{id}`、`/api/conversations/{id}`、`/api/status`）。
 - **Atom フィード**：状態ページに URL（`PUBLIC_BASE_URL/feed/<トークン>.atom`）が出ます。トークンは `SESSION_SECRET` から作るので、知っている人は誰でも読めます。公開しないでください。`SESSION_SECRET` を変えると URL も変わります。最新 20 件のダイジェストを要約テキストで載せます。
 
+## バックアップと復元
+
+`scripts/backup.sh` は、データベース（`pg_dump`）と `config/profile.yaml` のスナップショットを `BACKUP_DIR`（既定 `./backups`）に書きます。各スナップショットには行数の `MANIFEST` も入り、新しい `BACKUP_KEEP` 個（既定 14）だけ残して古いものは消します。スタック（`sounding-db`）が起動している必要があります。
+
+```bash
+BACKUP_DIR=/mnt/nas/sounding scripts/backup.sh                          # スナップショットを取る
+scripts/restore.sh --check /mnt/nas/sounding/<タイムスタンプ>            # 使い捨ての DB に復元して行数を MANIFEST と比べる（本番のデータには触らない）
+scripts/restore.sh --yes   /mnt/nas/sounding/<タイムスタンプ>            # 本番の DB を置き換える（先に今の状態をバックアップする）
+```
+
+`--yes` は、今の状態をバックアップし、`sounding-web` と `sounding-worker` を止め、データベースを作り直してダンプを戻し、行数を確かめてからまた起動します（途中で失敗しても worker と web は起動し直します）。web の読み取り専用ロール `sounding_web` への権限もダンプに入っているので、復元後もそのまま読めます。`config/profile.yaml` と `.env` には触れません（スナップショットの `profile.yaml` は必要なら手でコピーして戻します）。
+
+- `BACKUP_DIR` は別のディスクか別のマシンに置いてください。同じディスクのバックアップはそのディスクと一緒に失われます。
+- **`.env` は含まれません**。`WEB_DB_PASSWORD`、`SESSION_SECRET`、LLM のキーなどは自分で安全な場所に控えてください。
+
+### 定期バックアップ
+
+毎日バックアップを取り、週に 1 回、最新のスナップショットを `--check` で確かめます。`crontab -e` に、パスを自分の環境に置き換えて書きます。
+
+```cron
+# 毎日 03:00 スナップショット
+0 3 * * *  cd /path/to/sounding && PATH=/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin BACKUP_DIR=/mnt/nas/sounding scripts/backup.sh >> /mnt/nas/sounding.log 2>&1
+# 日曜 03:30 最新のスナップショットを使い捨ての DB に復元して比べる
+30 3 * * 0 cd /path/to/sounding && PATH=/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin scripts/restore.sh --check "$(ls -1d /mnt/nas/sounding/2*Z | tail -n 1)" >> /mnt/nas/sounding.log 2>&1
+```
+
+- cron の `PATH` は最小限なので、`docker` のあるディレクトリを入れます（macOS の Docker Desktop・OrbStack は `/usr/local/bin` か `/opt/homebrew/bin`、Linux は多くの場合 `/usr/bin`）。
+- cron は `~` を展開しません。絶対パスで書きます。
+- その時刻にマシンが起きている必要があります（macOS ではスリープを切るか `pmset repeat wake` を使う）。
+- ログを時々見てください。失敗はそこにしか出ません。
+
 ## 開発に参加する
 
 - 最初に [AGENTS.md](AGENTS.md)（方針・確定済みの判断・ルール）と [LOCAL_DEV.md](LOCAL_DEV.md)（秘密の置き場所）を読む
