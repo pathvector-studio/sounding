@@ -15,6 +15,8 @@ production dependencies under GPL, AGPL, SSPL, BUSL, Elastic, Commons Clause or 
 | certifi (dependency of `httpx`) | backend image | MPL-2.0 | https://github.com/certifi/python-certifi |
 | feedparser-sgmllib (dependency of `feedparser`) | backend image | PSF-2.0 | https://github.com/kurtmckee/feedparser |
 | PostgreSQL 16 (`postgres:16` image) | database container | PostgreSQL License | https://www.postgresql.org/ |
+| Tailscale (`tailscale/tailscale` image; optional `tailscale` profile) | sidecar container | BSD-3-Clause | https://github.com/tailscale/tailscale |
+| cloudflared (`cloudflare/cloudflared` image; optional `cloudflare` profile) | sidecar container | Apache-2.0 | https://github.com/cloudflare/cloudflared |
 
 psycopg is LGPL-3.0: you may replace it with another build of the same library, for example by
 rebuilding the image with a different pinned version in `backend/pyproject.toml` and `backend/uv.lock`.

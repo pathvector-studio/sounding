@@ -141,11 +141,60 @@ WEB_PASSWORD_HASH='scrypt$32768$8$1$<salt>$<hash>'
 
 **公開するアドレス**：`BIND_ADDRESS`（既定 `127.0.0.1` = このマシンだけ）を `0.0.0.0` にすると LAN の別の端末から `http://192.168.1.10:8080` のように開けます。LAN に開くときは `WEB_PASSWORD_HASH` が必須で、空のままだと web は起動しません。
 
-- 空のままなら**ログインなし**です。起動時に警告をログに出し、すべてのページの上部に帯を出します。Tailscale や Cloudflare Access のような外側の認証の内側でだけ使ってください（公開の方法は段 4 で選べるようにします）。
+- 空のままなら**ログインなし**です。起動時に警告をログに出し、すべてのページの上部に帯を出します。Tailscale や Cloudflare Access のような外側の認証の内側でだけ使ってください（公開のしかたは次の「公開のしかた」）。
 - ログインすると 30 日有効なセッション Cookie（`HttpOnly`、`SameSite=Lax`、`PUBLIC_BASE_URL` が https のとき `Secure`）が発行されます。失敗が 5 回続くと、そのクライアントアドレスからの試行は 429 で待たされます（待ち時間は 2 秒から倍々、最大 15 分。web を再起動すると忘れます）。
 - `SESSION_SECRET` は 32 バイト以上で、`change-me` のままだと web は起動を拒否します（`openssl rand -hex 32`）。
 - `GET /healthz`（`ok` だけ）、`/static/`、Atom フィードはログイン不要で、そのほかのページと `/api/` はログインが必要です。API は読み取り専用の JSON です（`/api/digests`、`/api/digests/latest`、`/api/digests/{id}`、`/api/conversations/{id}`、`/api/status`）。
 - **Atom フィード**：状態ページに URL（`PUBLIC_BASE_URL/feed/<トークン>.atom`）が出ます。トークンは `SESSION_SECRET` から作るので、知っている人は誰でも読めます。公開しないでください。`SESSION_SECRET` を変えると URL も変わります。最新 20 件のダイジェストを要約テキストで載せます。
+
+## 公開のしかた
+
+既定は `127.0.0.1` だけの公開です（このマシンのブラウザからだけ）。ほかの端末から開く方法は 3 つあります。どれも `.env` の `PUBLIC_BASE_URL`（Atom フィードと配信メールのリンク、Cookie の `Secure` はこれに従う）を、実際に開く URL に合わせてください。
+
+### A. LAN
+
+`.env` で `BIND_ADDRESS=0.0.0.0` にし、`PUBLIC_BASE_URL` を LAN のアドレス（例 `http://192.168.1.10:8080`）にします。**`WEB_PASSWORD_HASH` が必須**で、空のままだと web は起動しません。通信は平文の http なので、信頼できる LAN の中だけで使ってください。
+
+### B. Tailscale（tailnet の中だけ・おすすめ）
+
+Tailscale サイドカー（`sounding-tailscale`、ユーザー空間ネットワーク、受信ポートなし）が、tailnet 上に `https://sounding.<tailnet>.ts.net` を出します。インターネットには出ません（Funnel は使いません）。
+
+1. Tailscale の管理画面で **DNS → MagicDNS** と **HTTPS Certificates** を有効にする。
+2. **Settings → Keys** で認証キー（auth key）を作る。
+3. `.env` に書く:
+   ```
+   TS_AUTHKEY=<作った認証キー>
+   TS_HOSTNAME=sounding
+   PUBLIC_BASE_URL=https://sounding.<tailnet>.ts.net
+   COMPOSE_PROFILES=tailscale
+   ```
+4. `docker compose up -d`（`COMPOSE_PROFILES` を書かないなら `docker compose --profile tailscale up -d`）。
+5. tailnet につないだ端末で `https://sounding.<tailnet>.ts.net` を開く。
+
+状態はボリューム `tailscale-state` に残るので、最初にログインできたあとは `.env` の `TS_AUTHKEY` を空にして構いません。ログインなし（`WEB_PASSWORD_HASH` が空）で使うなら、tailnet の ACL で開ける端末を絞ってください。
+
+### C. Cloudflare Tunnel + Access（インターネット越し）
+
+`cloudflared` サイドカー（`sounding-cloudflared`）が Cloudflare へ外向きに繋ぎ、`https://digest.example.com` のような自分のドメインで公開します。**Cloudflare Access を必ず前に置いてください**（Access なしで公開しない）。トンネルを起動する前に Access を作ります。
+
+1. Cloudflare Zero Trust ダッシュボードで **Access → Applications → Add an application → Self-hosted**。ホスト名 `digest.example.com`、パスは空（ホスト全体）。ポリシーは Allow、Include は Emails（自分のメールアドレス）。
+2. **Networks → Tunnels → Create a tunnel**（Cloudflared）。**Public hostname** に `digest.example.com`、Service は `HTTP` の `sounding-web:8080`。表示されるトークンを控える。
+3. `.env` に書く:
+   ```
+   CLOUDFLARE_TUNNEL_TOKEN=<トンネルのトークン>
+   PUBLIC_BASE_URL=https://digest.example.com
+   COMPOSE_PROFILES=cloudflare
+   ```
+4. `docker compose up -d`（または `docker compose --profile cloudflare up -d`）。
+5. `https://digest.example.com` を開き、Access のログインを通ったあと Sounding が出ることを確かめる。ログアウト状態（別のブラウザ）で Access の画面が出ることも確かめる。
+
+Atom フィードの URL はトークン入りで、Access の外のフィードリーダーは取得できません。リーダーで読むなら Access の Service Token を発行してリーダーに設定するか、B を使ってください。
+
+### B・C に共通
+
+- サイドカーは `sounding-edge` ネットワークだけに繋がり、データベースにも秘密にも届きません（`env_file` なし）。
+- web から見るとアクセスはすべてサイドカーのアドレスから来るので、ログインの試行制限（5 回失敗で待たせる）は全クライアントをまとめて数えます。
+- `COMPOSE_PROFILES` を `.env` に書くと、素の `docker compose up -d` でもサイドカーが起動します。
 
 ## バックアップと復元
 
