@@ -21,3 +21,6 @@ node_modules
 
 # Phase-0 spike raw data (never commit)
 spike/data/
+
+# Copied from the repo root at deploy time (RELEASING.md); the root install.sh is the source of truth
+site/install.sh

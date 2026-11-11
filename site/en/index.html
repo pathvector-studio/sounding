@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sounding — where the discussion stands</title>
+<meta name="description" content="A self-hosted daily digest that tells you where each IETF mailing-list thread stands, plus RSS items, filtered by your interest profile.">
+<link rel="alternate" hreflang="ja" href="https://sounding.pathvector.dev/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230b5cad%27/%3E%3Cpath d=%27M4 12q6-4 12 0t12 0M4 20q6-4 12 0t12 0%27 stroke=%27white%27 stroke-width=%273%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+<header><span class="brand">Sounding</span><span class="lang"><a href="/" hreflang="ja" lang="ja">日本語</a> · English</span></header>
+<main>
+<h1>Sounding — where the discussion stands</h1>
+<p class="lead">A morning digest that tells you how far the discussions you follow have got. Self-hosted, for network engineers first.</p>
+
+<h2>What Sounding is</h2>
+<p>For each IETF mailing-list thread you follow, you get:</p>
+<ul>
+<li>what is in dispute</li>
+<li>how far consensus has got</li>
+<li>what is still open</li>
+<li>what moved since last time</li>
+</ul>
+<p>RSS and Atom items go into the same digest. It does not show everything, only what matches your interest profile. It runs on your own machine and uses your own LLM key.</p>
+
+<h2>Where the name comes from</h2>
+<p>A sounding is a measurement of water depth, taken to find out where you are (taking soundings). To sound out is also to probe opinions and see how far agreement goes. Sounding measures where a discussion stands in a sea of primary sources, and feels out the temperature of consensus in the IETF sense. One word covers both.</p>
+
+<h2>Install</h2>
+<p>Docker Compose is required.</p>
+<pre><code>curl -sSL https://sounding.pathvector.dev/install.sh | bash</code></pre>
+<p>You can read the script first at <a href="https://sounding.pathvector.dev/install.sh">https://sounding.pathvector.dev/install.sh</a>, or as <code>install.sh</code> in the repository.</p>
+
+<h2>What is sent where</h2>
+<ul>
+<li>Output is summaries and source links only. Message and article bodies are never redistributed, and fetched bodies are deleted after the retention period.</li>
+<li>The LLM is bring-your-own key (Anthropic or OpenAI-compatible). The default is <code>none</code>: nothing leaves your machine until you add a key.</li>
+<li>Email addresses are masked before anything is sent to an LLM.</li>
+<li>You choose how to open it: this machine only, LAN with a password, Tailscale, or Cloudflare Tunnel + Access.</li>
+</ul>
+
+<h2>Status</h2>
+<p>Early (MVP). Sources today are IETF mailing lists and RSS / Atom.</p>
+
+<h2>Links</h2>
+<ul>
+<li><a href="https://github.com/pathvector-studio/sounding">GitHub: pathvector-studio/sounding</a></li>
+<li>License: MIT</li>
+</ul>
+</main>
+<footer>Sounding is open source from <a href="https://github.com/pathvector-studio">pathvector-studio</a>.</footer>
+</div>
+</body>
+</html>

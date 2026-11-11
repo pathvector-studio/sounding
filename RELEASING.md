@@ -25,6 +25,20 @@ The public interface is what other people's setups depend on: `.env` keys, `conf
 - `VERSION` matches the tag.
 - Changes to `site/` or `install.sh` are approved by the maintainer (they publish to the live site).
 
+## Site (Cloudflare Pages)
+
+The introduction site is the static `site/` (Japanese at `/`, English at `/en/`, no build step). `install.sh` is not stored there: the repo-root `install.sh` is the source of truth and is copied in at deploy time (`site/install.sh` is git-ignored).
+
+Cloudflare Pages project settings:
+
+- Connect the GitHub repository `pathvector-studio/sounding`; production branch `main`.
+- Build command: `cp install.sh site/install.sh`. Output directory: `site`.
+- Build watch paths: include only `site/**` and `install.sh`, so app changes do not redeploy the site.
+- Custom domain: `sounding.pathvector.dev`.
+- `site/_headers` sets the security headers and serves `/install.sh` as `text/plain`.
+
+Merging a PR that changes `site/` or `install.sh` is a production publish. It needs the maintainer's approval every time.
+
 ## If a secret or personal detail was published
 
 1. Revoke or rotate the secret first (LLM keys, webhook URLs, SMTP passwords, database and session secrets). A rewritten history does not undo a leak.
