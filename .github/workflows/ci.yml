@@ -35,6 +35,20 @@ jobs:
       - name: gitleaks (all history, values redacted)
         run: docker run --rm -v "$PWD:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.28.0 git /repo --redact --no-banner --log-opts=--all
 
+  # VERSION is the one place the version is set (scripts/version.py); a release tag must be v$(cat VERSION).
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Every copy matches VERSION
+        if: github.ref_type != 'tag'
+        run: python3 scripts/version.py check
+      - name: The tag matches VERSION
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python3 scripts/version.py check --tag "$TAG"
+
   # The compose file stays valid with the dummy values of .env.example.
   compose:
     runs-on: ubuntu-latest
@@ -72,4 +86,28 @@ jobs:
           uv run pytest -q -rs -p no:cacheprovider | tee pytest.log
           if grep -qi "skipped" pytest.log; then echo "::error::tests were skipped"; exit 1; fi
 
-  # The frontend and installer jobs are added with their code (docs/DESIGN.md §9).
+  # install.sh (served through https://sounding.pathvector.dev/install.sh from the latest Release): lint, then
+  # prepare an install of this commit without a terminal and without starting anything.
+  installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck install.sh scripts/backup.sh scripts/restore.sh
+      - name: A prepare-only install writes the env file and the profile
+        env:
+          SOUNDING_DIR: ${{ runner.temp }}/sounding
+          SOUNDING_NO_START: "1"
+          SOUNDING_NONINTERACTIVE: "1"
+        run: |
+          git switch -c ci-install
+          SOUNDING_REPO="file://$PWD" SOUNDING_REF=ci-install bash install.sh
+          env_file="$SOUNDING_DIR/.env"
+          test "$(stat -c %a "$env_file")" = 600
+          test -f "$SOUNDING_DIR/config/profile.yaml"
+          test "$(grep -cE '^(POSTGRES_PASSWORD|WEB_DB_PASSWORD|SESSION_SECRET|IDENTITY_SECRET)=[0-9a-f]{64}$' "$env_file")" = 4
+          # A second run leaves the env file alone.
+          before="$(sha256sum < "$env_file")"
+          SOUNDING_REPO="file://$PWD" SOUNDING_REF=ci-install bash install.sh
+          test "$(sha256sum < "$env_file")" = "$before"
+
+  # The frontend job is added with its code (docs/DESIGN.md §9).

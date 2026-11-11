@@ -1,6 +1,6 @@
 [project]
 name = "sounding-backend"
-version = "0.0.0"  # the release version lives in ../VERSION (RELEASING.md)
+version = "0.1.0"  # the release version lives in ../VERSION (RELEASING.md)
 description = "Sounding worker: fetch, store and (later) summarize where technical discussions stand"
 requires-python = ">=3.12,<3.13"
 dependencies = [
