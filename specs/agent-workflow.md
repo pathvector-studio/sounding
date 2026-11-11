@@ -41,7 +41,7 @@ decision: null                       # 要判断なら 1 問 + 選択肢
 親はターンの終わりに「進捗 / 要判断 / 詰まり」の 3 行と判断 1 問だけを出す。`STATUS.md` は節目（作業の完了・判断待ち・PR のマージ）で更新する。公開リポジトリなので、ローカル固有の情報は書かない。
 
 ## ループ（無人で回す開発、2026-11-12）
-対話のセッションとは別に、1 つのセッションが `specs/backlog.md` を上から 1 項目ずつ進める。手順は `.claude/skills/iterate/SKILL.md`。
+対話のセッションとは別に、1 つのセッションが `specs/backlog.md` を上から 1 項目ずつ進める。手順は `.claude/skills/dev-loop/SKILL.md`。
 
 - **隔離**：ループは専用の worktree `.claude/worktrees/loop`（`main` を detached で）で動き、項目ごとに `loop/<ID>` ブランチを切る。利用者のチェックアウト・ブランチ・開発用の compose には触れない。テストは `scripts/test.sh`（使い捨ての DB を空いたポートで立てる）だけ。
 - **何を進めるか**：バックログの `ready`（`main` にある承認済み spec の項目）と `spec`（spec 案を書いて PR を出すところまで）。項目の追加・並べ替え・`ready` にするのはユーザー。
@@ -54,4 +54,4 @@ decision: null                       # 要判断なら 1 問 + 選択肢
 ```bash
 git worktree add --detach .claude/worktrees/loop origin/main
 ```
-そのフォルダでセッションを開き、`/loop /iterate`。
+そのフォルダでセッションを開き、`/loop /dev-loop`。

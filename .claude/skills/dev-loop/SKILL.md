@@ -1,9 +1,9 @@
 ---
-name: iterate
-description: Sounding の開発ループを 1 回まわす。specs/backlog.md から ready の項目を 1 つ取り、実装・テスト・自己レビュー・PR・CI・（ゲートに当たらなければ）マージまで進め、結果を記録する。`/loop /iterate` で繰り返す。ループ用 worktree（.claude/worktrees/loop）の中でだけ使う。
+name: dev-loop
+description: Sounding の開発ループを 1 回まわす。specs/backlog.md から ready の項目を 1 つ取り、実装・テスト・自己レビュー・PR・CI・（ゲートに当たらなければ）マージまで進め、結果を記録する。`/loop /dev-loop` で繰り返す。ループ用 worktree（.claude/worktrees/loop）の中でだけ使う。
 ---
 
-# 開発ループの 1 回（/iterate）
+# 開発ループの 1 回（/dev-loop）
 
 体制と権限は `specs/agent-workflow.md`（特に「ループ」）。ここはその手順だけ。**1 回で進めるのは 1 項目まで。** 迷ったら止めて `parked` にし、次の回に任せる。ユーザーに質問して待たない（見ている人はいない）。
 
