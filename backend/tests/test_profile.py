@@ -18,7 +18,7 @@ def test_missing_file_tracks_nothing(tmp_path):
 
 def test_example_profile_is_valid():
     p = load_profile(EXAMPLE)
-    assert p.ietf_lists == ["sidrops", "grow"] and p.feed_urls == ["https://example.com/feed.xml"]
+    assert p.ietf_lists == ["sidrops", "grow"] and p.feed_urls == ["https://blog.apnic.net/feed/", "https://www.ietf.org/blog/feed/"]
     assert p.keywords.include and p.ietf.drafts
 
 

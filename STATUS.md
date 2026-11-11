@@ -1,24 +1,27 @@
 # STATUS
 
-親セッションだけが更新する（体制は `specs/agent-workflow.md`）。最終更新: 2026-11-11
+親セッションだけが更新する（体制は `specs/agent-workflow.md`）。最終更新: 2026-11-12
 
 ## 進行中
 | タスク | リポジトリ / ブランチ | 担当 | 状態 |
 |---|---|---|---|
-| なし | | | |
+| v0.1.0 のリリース準備 | `release/v0.1.0`（#26・#27 を含む） | 親 | PR 済み・利用者のマージ待ち |
 
 ## 承認待ち
-- なし
+- #26（install.sh）→ #27（紹介サイト、Workers）→ リリース PR（v0.1.0）のマージ。どれも `site/` か `install.sh` を含むので本番公開
+- マージ後：タグ `v0.1.0` の push と GitHub Release（`install.sh` を添付）、Workers Builds の接続（`RELEASING.md`）
 
 ## 予定
 - 受け入れ基準 6 の残り：利用者が `~/.config/sounding/dev.env` に `WEBHOOK_URL` と `DELIVERY_CHANNELS`（`webhook` を含む）を入れたら、`digest --once` で実際に 1 回だけ届き、再実行で届かないことを確かめる
-- 段 4 の実装（5 項目。install.sh と `site/` の PR のマージは毎回承認）
+- 段 4 の受け入れ基準 5：利用者の tailnet で `--profile tailscale` を確かめる
+- MVP の後の小さな修正：`docker compose up --build` で worker と web が毎回作り直される（attestation）
 - Anthropic のキーを入れたら、実モデルで費用と品質を測って `LLM_DAILY_BUDGET_USD` の既定を見直す
 
 ## 詰まり
 - なし
 
 ## 直近の完了
+- **段 4 完了**（2026-11-12）。5/5。サイトの公開のしかたを biblioflow と揃えた（Workers の静的アセット、`/install.sh` は最新 Release の添付へ 302）。`scripts/version.py` と CI の version・installer ジョブ。例のプロファイルのフィードを実在するもの（APNIC・IETF のブログ）に。リリースブランチの新規インストールで 3 つが healthy、版は 0.1.0、テスト 495 件通過
 - 段 4 の spec を承認（2026-11-11、要判断はすべて (a)：Tailscale と cloudflared は compose のサイドカー（イメージ 2 つを追加）、install.sh ではプロファイルの中身を聞かない、紹介サイトもこの段で作る）
 - **段 3 完了**（2026-11-11）。4/4：email と webhook の配信、配信の記録と再送（2 回・3 日以内）、`deliver` コマンド、状態のページに配信の表。手元の受け手で、失敗の記録 → 1 回だけ届く → 再実行で送らない、を確認。実チャネルへの配信確認は予定に残す
 - 段 3 の実装 3/4（2026-11-10）：Web UI・JSON API・ログイン（scrypt、失敗 5 回で 429）・Atom フィード、web を compose で既定で起動（秘密を渡さない）

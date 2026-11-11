@@ -14,8 +14,10 @@ ietf:
     - draft-ietf-sidrops-aspa-
   extra_lists: []        # lists that are not working groups
 
-feeds:
-  - url: https://example.com/feed.xml
+feeds:                   # RSS / Atom; replace with your own
+  - url: https://blog.apnic.net/feed/
+    weight: 1.0
+  - url: https://www.ietf.org/blog/feed/
     weight: 1.0
 
 keywords:

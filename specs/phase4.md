@@ -8,7 +8,7 @@
 完了の目安（`docs/DESIGN.md` 9 章）：**別のマシンに 1 コマンドで入る**。
 
 ## 要件
-- [ ] R1: **install.sh**（リポジトリ直下）。`curl -sSL https://sounding.pathvector.dev/install.sh | bash` で次を行う。
+- [x] R1: **install.sh**（リポジトリ直下）。`curl -sSL https://sounding.pathvector.dev/install.sh | bash` で次を行う。
   - Docker・Compose v2・git があり、Docker のデーモンに届くかを確かめ、足りなければ直し方を出して止まる。
   - 最新のリリースタグ（`vX.Y.Z`、プレリリースは除く。なければ `main`）を clone する。既存の checkout があれば、手元の変更がない場合だけ更新する。
   - `.env` がなければ `.env.example` から作り、`POSTGRES_PASSWORD`・`WEB_DB_PASSWORD`・`SESSION_SECRET`・`IDENTITY_SECRET` を生成値で置き換え、権限を 600 にする。`.env` があれば触らない。
@@ -21,22 +21,22 @@
   - `docker compose up -d --build --wait` で起動し、Web UI の URL と次の一歩（パスワードの設定、プロファイルの編集、公開モード）を出す。
   - 環境変数 `SOUNDING_DIR`・`SOUNDING_REPO`・`SOUNDING_REF`・`SOUNDING_PORT`・`SOUNDING_NO_START` で上書きできる。`SOUNDING_LLM_PROVIDER` のように、質問の答えも環境変数で渡せる（キーを除く）。
   - スクリプト全体を関数で包み、途中までしか落ちてこなかったときに半端に実行されないようにする。
-- [ ] R2: **公開モード 3 種**を README に書き、動く形で用意する。
+- [x] R2: **公開モード 3 種**を README に書き、動く形で用意する。
   - A. **LAN**：`BIND_ADDRESS`（既定 `127.0.0.1`）を足し、`0.0.0.0` にすると LAN から開ける。ログインのパスワードを設定していないと起動しない（LAN に開くのにログインなしは不可）。
   - B. **Tailscale**：tailnet の中だけに HTTPS で出す。
   - C. **Cloudflare Tunnel＋Access**：外から開けるが、Access の内側に置く手順を必須として書く。
   - どのモードでも `PUBLIC_BASE_URL` が https ならクッキーに `Secure` を付ける（段 3 の実装のまま）。
-- [ ] R3: **バックアップと復元**。
+- [x] R3: **バックアップと復元**。
   - `scripts/backup.sh`：`pg_dump`（カスタム形式）と、行数の `MANIFEST` を `BACKUP_DIR`（既定 `./backups`）の時刻つきのディレクトリに書く。新しい `BACKUP_KEEP`（既定 14）個だけ残す。`.env` は含めない。
   - `scripts/restore.sh --check <snapshot>`：使い捨ての DB に復元して行数を `MANIFEST` と比べる。本番のデータには触らない。
   - `scripts/restore.sh --yes <snapshot>`：今の状態をバックアップしてから、worker と web を止めて本番の DB を置き換え、また起動する。
   - README に cron での日次バックアップと週次の `--check` の例を書く。
-- [ ] R4: **web の DB ロールを読み取り専用にする**（段 3 の「決めたこと」で段 4 に回した件）。web は SELECT しかできないロールで接続し、書き込みの SQL を DB が拒む。ロールは migration で作り、パスワードは新しい秘密 `WEB_DB_PASSWORD` から worker が設定する（「決めたこと」）。
-- [ ] R5: **紹介サイト**（`site/`、HTML/CSS のみ、ビルドなし）。
+- [x] R4: **web の DB ロールを読み取り専用にする**（段 3 の「決めたこと」で段 4 に回した件）。web は SELECT しかできないロールで接続し、書き込みの SQL を DB が拒む。ロールは migration で作り、パスワードは新しい秘密 `WEB_DB_PASSWORD` から worker が設定する（「決めたこと」）。
+- [x] R5: **紹介サイト**（`site/`、HTML/CSS のみ、ビルドなし）。
   - トップページに、何をするものか（議論の現在地を届ける）、**名前の由来**（測深＝位置を確かめる、sound out＝意見・合意を探る）、インストールの 1 行、送られるもの（要約と出典リンクだけ、LLM は自分のキー、既定は何も外に送らない）、GitHub へのリンク。
-  - `install.sh` はリポジトリ直下を正とし、デプロイのときに `site/` にコピーする（`site/` 側を直接編集しない）。
+  - `install.sh` はリポジトリ直下を正とする。~~デプロイのときに `site/` にコピーする~~ → 実装では `/install.sh` を最新の GitHub Release に添付した `install.sh` へ 302 で転送する（「実装後の追記」）。
   - 日本語と英語の 2 ページ。
-- [ ] R6: **README の整理**。セットアップを install.sh 起点に書き直し、手動の手順は「手で入れる」に下げる。更新（`install.sh` の再実行）、公開モード、バックアップ、2 つ目のインスタンスの節を足す。
+- [x] R6: **README の整理**。セットアップを install.sh 起点に書き直し、手動の手順は「手で入れる」に下げる。更新（`install.sh` の再実行）、公開モード、バックアップ、2 つ目のインスタンスの節を足す。
 
 ## スコープ外
 - **Cloudflare Pages の設定そのもの**（プロジェクトの作成、`sounding.pathvector.dev` の DNS、監視パスの設定）。利用者が Cloudflare のダッシュボードで行う。この段では手順を `RELEASING.md` に書くだけ。
@@ -84,3 +84,13 @@
 3. **install.sh と README の整理**：R1・R6、決定事項 2 の結果。受け入れ基準 2・3・8。**`install.sh` を変えるのでマージは利用者の承認**。
 4. **公開モード B・C**：決定事項 1 の結果に従い compose の profile か手順書（R2）。受け入れ基準 5 は利用者の tailnet で確かめる。
 5. **紹介サイト**：`site/`、`RELEASING.md` に Cloudflare Pages の手順（R5）。受け入れ基準 7。**`site/` を変えるのでマージは利用者の承認**。
+
+## 実装後の追記（2026-11-12）
+- 5 つの PR（#23〜#27）で実装した。受け入れ基準 1〜4・6〜8 は確認済み。**5（Tailscale）は未確認**（利用者の tailnet と認証キーが要る）。
+- **サイトの公開のしかたを biblioflow のサイトと揃えた**（利用者の指示、2026-11-12）：Cloudflare Pages のビルドで `install.sh` をコピーする案をやめ、Cloudflare Workers の静的アセット（`wrangler.toml`、`main` への push で Workers Builds がデプロイ）にした。`/install.sh` は `site/_redirects` で最新の GitHub Release に添付した `install.sh` へ 302 する。main の未リリースのインストーラが利用者に届かず、サイトの中身はリリースされたものだけを説明する、という biblioflow の形に合わせるため。リリースでは `gh release create ... install.sh` で添付する（`RELEASING.md`）。
+- **`WEB_DB_PASSWORD` を新しい秘密にした**：当初の「`POSTGRES_PASSWORD` から導く」案では、web が所有者のパスワードを知っていることになり、読み取り専用ロールの意味がなくなる。install.sh が生成するので、新しく入れる人の手順は増えない。
+- **サイドカーのイメージのタグ**：`tailscale/tailscale:v1.104.2`、`cloudflare/cloudflared:2026.10.5`（どちらも採用時点で 2 週間以上前のもの）。
+- **`TS_AUTHKEY`・`CLOUDFLARE_TUNNEL_TOKEN` を `:?` にしなかった**：compose は profile の外のサービスも変数を展開するので、必須にすると profile なしの `docker compose up` が壊れる。空のときはサイドカー自身がすぐ終了する。
+- **`SOUNDING_NONINTERACTIVE`**：CI や自動化で端末があっても質問させないため（端末の有無だけでは判定できない）。
+- **install.sh はイメージを 1 回だけビルドする**：worker と web は同じイメージ（`sounding-app:local`）。サービスごとにビルドするとビルドの attestation で毎回イメージ ID が変わり、再実行で動いているコンテナが作り直される。`BUILDX_NO_DEFAULT_ATTESTATIONS=1` で 1 回だけビルドし、`up --no-build` で起動する。手元で `docker compose up --build` を使うときは同じ理由で作り直しが起きる（MVP の後の小さな修正の候補）。
+- **cloudflared の metrics は `127.0.0.1:2000`**（#29）：healthcheck は同じコンテナの中で動くので、`sounding-edge` に開ける必要はない。
