@@ -39,3 +39,19 @@ decision: null                       # 要判断なら 1 問 + 選択肢
 
 ## 報告
 親はターンの終わりに「進捗 / 要判断 / 詰まり」の 3 行と判断 1 問だけを出す。`STATUS.md` は節目（作業の完了・判断待ち・PR のマージ）で更新する。公開リポジトリなので、ローカル固有の情報は書かない。
+
+## ループ（無人で回す開発、2026-11-12）
+対話のセッションとは別に、1 つのセッションが `specs/backlog.md` を上から 1 項目ずつ進める。手順は `.claude/skills/iterate/SKILL.md`。
+
+- **隔離**：ループは専用の worktree `.claude/worktrees/loop`（`main` を detached で）で動き、項目ごとに `loop/<ID>` ブランチを切る。利用者のチェックアウト・ブランチ・開発用の compose には触れない。テストは `scripts/test.sh`（使い捨ての DB を空いたポートで立てる）だけ。
+- **何を進めるか**：バックログの `ready`（`main` にある承認済み spec の項目）と `spec`（spec 案を書いて PR を出すところまで）。項目の追加・並べ替え・`ready` にするのはユーザー。
+- **ゲート**：上の権限表のまま。ループの中ではガードの「ask」がすべて「deny」になり、ループは待たずに項目を `parked` / `needs-approval` にして次へ進む。ガード（`.claude/hooks/guard.py`）は加えて、ゲートのパス（`site/`・`install.sh`・`.claude/`・`.githooks/`・`.github/`・`scripts/check-private-info.py`・この文書）を変える PR と新しい spec の PR の `gh pr merge` を止め（ループ外では ask）、ループの中ではガード自身の編集と `main` への push を止める。安全の境界ではない点は変わらない。
+- **承認の受け取り方**：spec はユーザーが spec PR をマージすれば承認（決定事項は PR のコメントか会話で受け、親が spec に書き写す）。ゲートの PR はユーザーがマージする。
+- **止め方**：ループの worktree に `.loop/STOP` を置くか、そのセッションを止める。CI が 2 回直して通らない項目は `parked`。
+- **記録**：`.loop/journal.md`（git に入らない）に 1 回 3 行。`STATUS.md` とバックログはその回の PR の中で更新する。
+
+起動（初回だけ worktree を作る）：
+```bash
+git worktree add --detach .claude/worktrees/loop origin/main
+```
+そのフォルダでセッションを開き、`/loop /iterate`。
