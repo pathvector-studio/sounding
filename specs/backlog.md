@@ -11,8 +11,8 @@
 
 | ID | 内容 | spec | 状態 | メモ |
 |---|---|---|---|---|
-| release-v0.1.0 | v0.1.0 のリリース PR（#30。#26 install.sh・#27 紹介サイトを含む） | `RELEASING.md` | needs-approval | `site/`・`install.sh`・`.github/` を変えるのでマージはユーザー。マージ後 #26・#27 は閉じる |
-| launch | タグ `v0.1.0` と GitHub Release（`install.sh` を添付）、Workers Builds の接続、本番 URL での確認 | `RELEASING.md` | needs-user | タグ・リリース・Cloudflare はユーザー。済んだら親が本番の `/install.sh` と両ページを確かめる |
+| release-v0.1.0 | v0.1.0 のリリース PR（#30。#26 install.sh・#27 紹介サイトを含む） | `RELEASING.md` | done | 2026-11-13 マージ、タグと Release（`install.sh` 添付）公開 |
+| launch | サイトの公開と Workers Builds の接続 | `RELEASING.md` | needs-user | 2026-11-13 `wrangler deploy` で公開済み・本番で確認済み。残りは Workers Builds（GitHub 連携）の接続だけ。接続まではサイトの変更を手元の `npx wrangler deploy` で出す |
 | p4-tailscale | 段 4 の受け入れ基準 5：tailnet の中からだけ https で開ける | `specs/phase4.md` | needs-user | 利用者の tailnet と認証キーが要る |
 | p3-webhook | 受け入れ基準 6 の残り：実 webhook に 1 回だけ届く | `specs/phase3.md` | needs-user | 利用者の `WEBHOOK_URL` が要る |
 | llm-budget | 実モデルで費用と品質を測り `LLM_DAILY_BUDGET_USD` の既定を見直す | — | needs-user | Anthropic のキーが要る |
