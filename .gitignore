@@ -16,8 +16,9 @@ node_modules
 .claude/settings.local.json
 .claude/worktrees/
 
-# Agent hand-off notes (specs/agent-workflow.md)
+# Agent hand-off notes and the loop's journal / stop file (specs/agent-workflow.md)
 .handoff/
+.loop/
 
 # Phase-0 spike raw data (never commit)
 spike/data/
