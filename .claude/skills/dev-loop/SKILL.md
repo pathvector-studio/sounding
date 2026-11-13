@@ -1,6 +1,6 @@
 ---
 name: dev-loop
-description: Sounding の開発ループを 1 回まわす。specs/backlog.md から ready の項目を 1 つ取り、実装・テスト・自己レビュー・PR・CI・（ゲートに当たらなければ）マージまで進め、結果を記録する。`/loop /dev-loop` で繰り返す。ループ用 worktree（.claude/worktrees/loop）の中でだけ使う。
+description: Sounding の開発ループを 1 回まわす。specs/backlog.md から ready の項目を 1 つ取り、実装・テスト・自己レビュー・PR・CI・（ゲートに当たらなければ）マージまで進め、結果を記録する。`/loop dev-loop スキルを 1 回まわす` で繰り返す。ループ用 worktree（.claude/worktrees/loop）の中でだけ使う。
 ---
 
 # 開発ループの 1 回（/dev-loop）

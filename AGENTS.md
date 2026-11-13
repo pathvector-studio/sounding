@@ -56,7 +56,7 @@ Sounding は、追うべき一次情報が多すぎる専門職（まずネッ�
 - ブランチの更新は rebase + force push ではなく `git merge origin/main`。
 - PR ごとに `CHANGELOG.md` の `[Unreleased]` に利用者向けの 1〜3 行を足す（CI・テストだけの PR は `skip-changelog` ラベル）。
 - バージョンは `VERSION` だけで決める（`RELEASING.md`）。タグの push と GitHub Release の作成はユーザーが行う。
-- 権限と承認の範囲は `specs/agent-workflow.md`（`.claude/settings.json` と `.claude/hooks/guard.py` が補助する）。無人の開発ループ（`/loop /dev-loop`、作業キューは `specs/backlog.md`）も同じ文書の「ループ」。
+- 権限と承認の範囲は `specs/agent-workflow.md`（`.claude/settings.json` と `.claude/hooks/guard.py` が補助する）。無人の開発ループ（`/loop dev-loop スキルを 1 回まわす`、作業キューは `specs/backlog.md`）も同じ文書の「ループ」。
 
 ### 4.4 環境の再開手順
 ```bash
