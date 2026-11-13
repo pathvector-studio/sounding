@@ -22,7 +22,7 @@ snap="${2%/}"
 case "$mode" in --check|--yes) ;; *) die "usage: $0 --check|--yes <snapshot-dir>" ;; esac
 
 cd "$(dirname "$0")/.."
-[ -f "$snap/db.dump" ] && [ -f "$snap/MANIFEST" ] || die "$snap is not a backup snapshot."
+{ [ -f "$snap/db.dump" ] && [ -f "$snap/MANIFEST" ]; } || die "$snap is not a backup snapshot."
 docker compose ps --status running --services 2>/dev/null | grep -qx sounding-db \
   || die "sounding-db is not running (docker compose up -d sounding-db first)."
 
@@ -38,6 +38,8 @@ COUNTS_SQL="select 'sources', count(*) from sources union all
 want="$(grep -E '^(sources|items|conversations|conversation_states|events|digests|deliveries|llm_calls)=' "$snap/MANIFEST")"
 
 # compare_counts <database>: die unless the row counts equal MANIFEST.
+# The unquoted echo is deliberate: it puts the multi-line counts on one line for the message.
+# shellcheck disable=SC2086,SC2116
 compare_counts() {
   local got
   got="$(db "psql -U \"\$POSTGRES_USER\" -d $1 -At -F= -c \"$COUNTS_SQL\"" | tr -d '\r')"
@@ -68,9 +70,13 @@ ok "web and worker stopped"
 
 # Drop and recreate rather than --clean: nothing from the live schema (tables added after the
 # backup, for example) can be left behind. The dump carries the GRANTs to sounding_web.
+# The single quotes are deliberate here and below: $POSTGRES_USER / $POSTGRES_DB expand in the db container.
+# shellcheck disable=SC2016
 db 'dropdb -U "$POSTGRES_USER" --force "$POSTGRES_DB" && createdb -U "$POSTGRES_USER" "$POSTGRES_DB"'
+# shellcheck disable=SC2016
 db 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --exit-on-error' < "$snap/db.dump"
 ok "database restored"
+# shellcheck disable=SC2016
 compare_counts '"$POSTGRES_DB"'
 
 docker compose start sounding-worker sounding-web >/dev/null

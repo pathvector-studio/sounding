@@ -24,7 +24,7 @@ Sounding は、追うべき一次情報が多すぎる専門職（まずネッ�
 
 ## 4. 進捗ステータス & 再開手順（エージェントはまずここを読むこと）
 
-> 最終更新: 2026-11-11
+> 最終更新: 2026-11-12
 
 ### 4.1 段の進捗
 | 段 | 状態 | 備考 |
@@ -34,7 +34,7 @@ Sounding は、追うべき一次情報が多すぎる専門職（まずネッ�
 | 1. `SourceAdapter`・取得・DB | ✅ 完了 | `specs/phase1.md`。IETF ML（IMAP）と RSS を worker が定時取得 |
 | 2. LLM 抽象化・前処理・「現在地」の生成と差分更新 | ✅ 完了 | `specs/phase2.md`。worker が日次で会話の「現在地」を差分更新 |
 | 3. 選別・ダイジェスト・Web UI・配信 | ✅ 完了 | `specs/phase3.md`。日次のダイジェストを Web UI・API・Atom・email・webhook で届ける（実チャネルへの配信確認は残り） |
-| 4. インストール・公開モード・バックアップ・紹介サイト | 実装中（0/5） | `specs/phase4.md`（承認済み） |
+| 4. インストール・公開モード・バックアップ・紹介サイト | ✅ 完了 | `specs/phase4.md`。install.sh、公開モード（LAN・Tailscale・Cloudflare）、バックアップ、紹介サイト（Workers、`/install.sh` は最新 Release へ転送）。v0.1.0 で最初のリリース（Tailscale の実機確認は残り） |
 
 ### 4.2 確定済みの設計判断（再検討しない）
 - 名前は **Sounding**（2026-11-07）。リポジトリ `pathvector-studio/sounding`、サイト `sounding.pathvector.dev`、コンテナ接頭辞 `sounding-`。

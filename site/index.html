@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sounding — 議論の現在地を毎朝届けるダイジェスト</title>
+<meta name="description" content="IETF メーリングリストと RSS から、あなたの興味に合うものだけを選び、スレッドごとに「議論の現在地」を要約して届けるセルフホスト型ダイジェスト。">
+<link rel="alternate" hreflang="en" href="https://sounding.pathvector.dev/en/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%230b5cad%27/%3E%3Cpath d=%27M4 12q6-4 12 0t12 0M4 20q6-4 12 0t12 0%27 stroke=%27white%27 stroke-width=%273%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+<header><span class="brand">Sounding</span><span class="lang">日本語 · <a href="/en/" hreflang="en" lang="en">English</a></span></header>
+<main>
+<h1>Sounding — where the discussion stands</h1>
+<p class="lead">追いかける議論が今どこまで来たかを、毎朝のダイジェストで確かめる。セルフホスト型、まずはネットワークエンジニア向け。</p>
+
+<h2>Sounding とは</h2>
+<p>フォローしている IETF メーリングリストのスレッドごとに、次の 4 点をまとめて届けます。</p>
+<ul>
+<li>何が争点か</li>
+<li>合意はどこまで進んだか</li>
+<li>何が未決着か</li>
+<li>前回から何が動いたか</li>
+</ul>
+<p>RSS / Atom の記事も同じダイジェストに入ります。すべてを見せるのではなく、あなたの興味プロファイルに合うものだけを選びます。自分のマシンで動かし、LLM は自分のキーを使います。</p>
+
+<h2>名前の由来</h2>
+<p>sounding は「測深」、つまり水深を測って自分の位置を確かめることです（taking soundings）。もうひとつ、sound out は「意見や合意の度合いを探る」という意味の句動詞です。膨大な一次情報の海で議論の現在地を測り、IETF の合意形成の温度を探る。その両方を一語で表す名前として選びました。</p>
+
+<h2>インストール</h2>
+<p>Docker Compose が必要です。</p>
+<pre><code>curl -sSL https://sounding.pathvector.dev/install.sh | bash</code></pre>
+<p>このアドレスは最新リリースに添付した <code>install.sh</code> に転送されます。実行前に中身を読めます：<a href="https://github.com/pathvector-studio/sounding/releases/latest">最新リリース</a>、またはリポジトリの <a href="https://github.com/pathvector-studio/sounding/blob/main/install.sh"><code>install.sh</code></a>。</p>
+
+<h2>何がどこに送られるか</h2>
+<ul>
+<li>出力は要約と出典リンクだけです。メッセージや記事の本文は再配布せず、取得した本文も保持期間を過ぎたら削除します。</li>
+<li>LLM は自分のキーを持ち込みます（Anthropic、または OpenAI 互換）。既定は <code>none</code> で、キーを入れるまでマシンの外には何も送りません。</li>
+<li>LLM に渡す前に、メールアドレスは伏せます。</li>
+<li>開き方は選べます：このマシンだけ、パスワード付きで LAN に、Tailscale、Cloudflare Tunnel + Access。</li>
+</ul>
+
+<h2>現状</h2>
+<p>プレビュー版（v0.1.0）です。情報源は今のところ IETF メーリングリストと RSS / Atom です。</p>
+
+<h2>リンク</h2>
+<ul>
+<li><a href="https://github.com/pathvector-studio/sounding">GitHub: pathvector-studio/sounding</a></li>
+<li>ライセンス: MIT</li>
+</ul>
+</main>
+<footer>Sounding は <a href="https://github.com/pathvector-studio">pathvector-studio</a> のオープンソースです。</footer>
+</div>
+</body>
+</html>
