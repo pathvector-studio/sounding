@@ -54,4 +54,4 @@ decision: null                       # 要判断なら 1 問 + 選択肢
 ```bash
 git worktree add --detach .claude/worktrees/loop origin/main
 ```
-そのフォルダでセッションを開き、`/loop /dev-loop`。
+そのフォルダでセッションを開き、`/loop dev-loop スキルを 1 回まわす`。スラッシュコマンドは 1 つの指示に 1 つしか効かないので、`/loop /dev-loop` とは書かず、`/loop` の中身は文で頼む。

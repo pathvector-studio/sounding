@@ -5,10 +5,9 @@
 ## 進行中
 | タスク | リポジトリ / ブランチ | 担当 | 状態 |
 |---|---|---|---|
-| 開発ループ | `.claude/worktrees/loop`（`specs/backlog.md`） | ループ | 起動待ち。最初の項目は `eval-set` の spec 案 |
+| 開発ループ | `.claude/worktrees/loop`（`specs/backlog.md`） | ループ | 起動待ち（`/loop dev-loop スキルを 1 回まわす`）。最初の項目は `eval-set` の spec 案 |
 
 ## 承認待ち
-- Workers Builds の接続（ダッシュボード、`RELEASING.md`「紹介サイト」）
 - バックログの `compose-rebuild` を `ready` にするか
 
 ## 予定
@@ -21,7 +20,7 @@
 - なし
 
 ## 直近の完了
-- **v0.1.0 をリリース**（2026-11-13）。#30 をマージ、タグと GitHub Release（`install.sh` 添付）。紹介サイトを `wrangler deploy` で公開し、本番で確認：`/`・`/en/` が 200 とセキュリティヘッダー、`/install.sh` が Release へ 302 で中身が一致、その経路で `v0.1.0` が入る。`RELEASING.md` を日本語に（#31）
+- **v0.1.0 をリリース**（2026-11-13）。#30 をマージ、タグと GitHub Release（`install.sh` 添付）。紹介サイトを `wrangler deploy` で公開し、Workers Builds も接続。本番で確認：`/`・`/en/` が 200 とセキュリティヘッダー、`/install.sh` が Release へ 302 で中身が一致、その経路で `v0.1.0` が入る。`RELEASING.md` を日本語に（#31）
 - 開発ループの仕組み（#28、2026-11-12）：`specs/backlog.md`、`/dev-loop`、ループ用のガード、`scripts/test.sh`。バックログを v0.1.0 の状態に合わせた（2026-11-13）
 - **段 4 完了**（2026-11-12）。5/5。サイトの公開のしかたを biblioflow と揃えた（Workers の静的アセット、`/install.sh` は最新 Release の添付へ 302）。`scripts/version.py` と CI の version・installer ジョブ。例のプロファイルのフィードを実在するもの（APNIC・IETF のブログ）に。リリースブランチの新規インストールで 3 つが healthy、版は 0.1.0、テスト 495 件通過
 - 段 4 の spec を承認（2026-11-11、要判断はすべて (a)：Tailscale と cloudflared は compose のサイドカー（イメージ 2 つを追加）、install.sh ではプロファイルの中身を聞かない、紹介サイトもこの段で作る）
