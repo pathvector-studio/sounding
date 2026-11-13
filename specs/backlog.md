@@ -11,9 +11,11 @@
 
 | ID | 内容 | spec | 状態 | メモ |
 |---|---|---|---|---|
-| p4-install | 段 4 の 3/5：install.sh と README（PR #26） | `specs/phase4.md` | needs-approval | `install.sh` を変えるのでマージは毎回ユーザー |
-| p4-site | 段 4 の 5/5：紹介サイト（PR #27） | `specs/phase4.md` | needs-approval | `site/` を変えるのでマージは毎回ユーザー |
+| release-v0.1.0 | v0.1.0 のリリース PR（#30。#26 install.sh・#27 紹介サイトを含む） | `RELEASING.md` | needs-approval | `site/`・`install.sh`・`.github/` を変えるのでマージはユーザー。マージ後 #26・#27 は閉じる |
+| launch | タグ `v0.1.0` と GitHub Release（`install.sh` を添付）、Workers Builds の接続、本番 URL での確認 | `RELEASING.md` | needs-user | タグ・リリース・Cloudflare はユーザー。済んだら親が本番の `/install.sh` と両ページを確かめる |
+| p4-tailscale | 段 4 の受け入れ基準 5：tailnet の中からだけ https で開ける | `specs/phase4.md` | needs-user | 利用者の tailnet と認証キーが要る |
 | p3-webhook | 受け入れ基準 6 の残り：実 webhook に 1 回だけ届く | `specs/phase3.md` | needs-user | 利用者の `WEBHOOK_URL` が要る |
 | llm-budget | 実モデルで費用と品質を測り `LLM_DAILY_BUDGET_USD` の既定を見直す | — | needs-user | Anthropic のキーが要る |
 | eval-set | 評価セット（決着済みスレッドの「正解の現在地」）とプロンプトの回帰テスト | — | spec | ロードマップ目標 1。LLM なしで回る部分（データ形式・採点・CI）から |
 | ext-datatracker | 拡張 1：IETF Datatracker | — | spec | `eval-set` のあと（目標 1「質が固まるまで広げない」） |
+| compose-rebuild | `docker compose up --build` のたびに worker と web が作り直される（同じタグを 2 サービスがビルドし、attestation で ID が変わる）。compose 側で直す | — | needs-approval | 計画の外の小さな修正。ユーザーが `ready` にすればループが拾う。ループは `docker compose up` を使えないので、確認は親か CI で |
