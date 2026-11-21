@@ -147,7 +147,7 @@ services:
   #   docker compose --profile cloudflare up -d
   # Public hostname service in the dashboard: http://sounding-web:8080. Outbound only; on sounding-edge only, no env_file.
   sounding-cloudflared:
-    image: cloudflare/cloudflared:2026.10.5
+    image: cloudflare/cloudflared:2026.11.1
     container_name: ${SOUNDING_INSTANCE:-sounding}-cloudflared
     profiles: ["cloudflare"]
     # Metrics on loopback only: the healthcheck runs inside this container, nothing else on sounding-edge needs them.
